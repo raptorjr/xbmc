@@ -267,6 +267,7 @@ struct SinkInfoStruct
   bool device_found;
   pa_threaded_mainloop *mainloop;
   int samplerate;
+  pa_channel_map map;
   SinkInfoStruct()
   {
     list = NULL;
@@ -274,6 +275,7 @@ struct SinkInfoStruct
     device_found = true;
     mainloop = NULL;
     samplerate = 0;
+    pa_channel_map_init(&map);
   }
 };
 
@@ -290,6 +292,7 @@ static void SinkInfoCallback(pa_context *c, const pa_sink_info *i, int eol, void
 
     sinkStruct->samplerate = i->sample_spec.rate;
     sinkStruct->device_found = true;
+    sinkStruct->map = i->channel_map;
   }
   pa_threaded_mainloop_signal(sinkStruct->mainloop, 0);
 }
@@ -545,21 +548,6 @@ bool CAESinkPULSE::Initialize(AEAudioFormat &format, std::string &device)
      pa_fmt = PA_SAMPLE_FLOAT32;
      m_passthrough = false;
    }
-
-  if(m_passthrough)
-  {
-    map.channels = 2;
-    format.m_channelLayout = AE_CH_LAYOUT_2_0;
-  }
-  else
-  {
-    map = AEChannelMapToPAChannel(format.m_channelLayout);
-    // if count has changed we need to fit the AE Map
-    if(map.channels != format.m_channelLayout.Count())
-      format.m_channelLayout = PAChannelToAEChannelMap(map);
-  }
-  m_Channels = format.m_channelLayout.Count();
-
   // store information about current sink
   SinkInfoStruct sinkStruct;
   sinkStruct.mainloop = m_MainLoop;
@@ -577,9 +565,43 @@ bool CAESinkPULSE::Initialize(AEAudioFormat &format, std::string &device)
     return false;
   }
 
-  // Pulse can resample everything between 1 hz and 192000 hz
+  bool use_pa_mixing = false;
+
+  if(m_passthrough)
+  {
+    map.channels = 2;
+    format.m_channelLayout = AE_CH_LAYOUT_2_0;
+  }
+  else
+  {
+    // as we mix for PA now to avoid default upmixing, we need to care for
+    // channel resolving
+    CAEChannelInfo target_layout = format.m_channelLayout;
+    CAEChannelInfo available_layout = PAChannelToAEChannelMap(sinkStruct.map);
+    target_layout.ResolveChannels(available_layout);
+
+    // if we cannot map all requested channels - tell PA to mix for us
+    if (target_layout.Count() != format.m_channelLayout.Count())
+    {
+      use_pa_mixing = true;
+      map = AEChannelMapToPAChannel(format.m_channelLayout);
+    }
+    else
+    {
+      // use our layout to update AE
+      map = AEChannelMapToPAChannel(target_layout);
+    }
+    format.m_channelLayout = PAChannelToAEChannelMap(map);
+  }
+  m_Channels = format.m_channelLayout.Count();
+
+  // Pulse can resample everything between 1 hz and 192000 hz / 384000 hz (starting with 9.0)
   // Make sure we are in the range that we originally added
-  format.m_sampleRate = std::max(5512U, std::min(format.m_sampleRate, 192000U));
+  unsigned int max_pulse_sample_rate = 192000U;
+#if PA_CHECK_VERSION(9,0,0)
+  max_pulse_sample_rate = 384000U;
+#endif
+  format.m_sampleRate = std::max(5512U, std::min(format.m_sampleRate, max_pulse_sample_rate));
 
   pa_format_info *info[1];
   info[0] = pa_format_info_new();
@@ -624,13 +646,7 @@ bool CAESinkPULSE::Initialize(AEAudioFormat &format, std::string &device)
   }
 
   pa_sample_spec spec;
-  #if PA_CHECK_VERSION(2,0,0)
-    pa_format_info_to_sample_spec(info[0], &spec, NULL);
-  #else
-    spec.rate = (info[0]->encoding == PA_ENCODING_EAC3_IEC61937) ? 4 * samplerate : samplerate;
-    spec.format = pa_fmt;
-    spec.channels = m_Channels;
-  #endif
+  pa_format_info_to_sample_spec(info[0], &spec, NULL);
   if (!pa_sample_spec_valid(&spec))
   {
     CLog::Log(LOGERROR, "PulseAudio: Invalid sample spec");
@@ -677,8 +693,18 @@ bool CAESinkPULSE::Initialize(AEAudioFormat &format, std::string &device)
   buffer_attr.minreq = process_time;
   buffer_attr.prebuf = (uint32_t) -1;
   buffer_attr.tlength = latency;
+  int flags = (PA_STREAM_INTERPOLATE_TIMING | PA_STREAM_AUTO_TIMING_UPDATE | PA_STREAM_ADJUST_LATENCY);
 
-  if (pa_stream_connect_playback(m_Stream, isDefaultDevice ? NULL : device.c_str(), &buffer_attr, ((pa_stream_flags)(PA_STREAM_INTERPOLATE_TIMING | PA_STREAM_AUTO_TIMING_UPDATE | PA_STREAM_ADJUST_LATENCY)), NULL, NULL) < 0)
+  // by default PA will upmix / remix everything when multi channel layout is configured
+  // if we have enough channels in the target layout ask PA not to remix to related channels
+  // 1:1 remapping is allowed though
+  if (!m_passthrough && !use_pa_mixing)
+    flags |= PA_STREAM_NO_REMIX_CHANNELS;
+
+  if (m_passthrough)
+    flags |= PA_STREAM_PASSTHROUGH;
+
+  if (pa_stream_connect_playback(m_Stream, isDefaultDevice ? NULL : device.c_str(), &buffer_attr, (pa_stream_flags) flags, NULL, NULL) < 0)
   {
     CLog::Log(LOGERROR, "PulseAudio: Failed to connect stream to output");
     pa_threaded_mainloop_unlock(m_MainLoop);

@@ -556,9 +556,6 @@ bool CAddonsDirectory::GetDirectory(const CURL& url, CFileItemList &items)
     if (!GetRecentlyUpdatedAddons(addons))
       return false;
 
-    std::sort(addons.begin(), addons.end(),
-        [](const AddonPtr& a, const AddonPtr& b){ return a->LastUpdated() > b->LastUpdated(); });
-
     CAddonsDirectory::GenerateAddonListing(path, addons, items, g_localizeStrings.Get(24004));
     return true;
 
@@ -626,8 +623,6 @@ void CAddonsDirectory::GenerateAddonListing(const CURL &path,
       pItem->SetProperty("Addon.Status", g_localizeStrings.Get(24023));
     if (hasUpdate)
       pItem->SetProperty("Addon.Status", g_localizeStrings.Get(24068));
-    if (addon->Broken() == "DEPSNOTMET")
-      pItem->SetProperty("Addon.Status", g_localizeStrings.Get(24049));
     else if (!addon->Broken().empty())
       pItem->SetProperty("Addon.Status", g_localizeStrings.Get(24098));
 

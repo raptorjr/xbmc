@@ -676,6 +676,9 @@ void CGUIDialogAddonSettings::CreateControls()
 
   // set our dialog heading
   SET_CONTROL_LABEL(CONTROL_HEADING_LABEL, m_strHeading);
+  
+  // set addon id as window property
+  SetProperty("Addon.ID", m_addon->ID());
 
   CGUIControl* pControl = NULL;
   int controlId = CONTROL_START_SETTING;
@@ -783,7 +786,7 @@ void CGUIDialogAddonSettings::CreateControls()
           if (entryVec.size() > i)
             iAdd = atoi(entryVec[i].c_str());
           std::string replace;
-          if (std::all_of(valuesVec[i].begin(), valuesVec[i].end(), ::isdigit))
+          if (!lvalues.empty() && std::all_of(valuesVec[i].begin(), valuesVec[i].end(), ::isdigit))
           {
             replace = g_localizeStrings.GetAddonString(m_addon->ID(), atoi(valuesVec[i].c_str()));
             if (replace.empty())

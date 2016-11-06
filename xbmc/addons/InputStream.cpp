@@ -38,7 +38,8 @@ std::unique_ptr<CInputStream> CInputStream::FromExtension(AddonProps props, cons
   std::string name(ext->plugin->identifier);
   std::unique_ptr<CInputStream> istr(new CInputStream(props, name, listitemprops,
                                                       extensions, protocols));
-  istr->CheckConfig();
+  if (!CAddonMgr::GetInstance().IsAddonDisabled(props.id))
+    istr->CheckConfig();
   return istr;
 }
 
@@ -67,6 +68,18 @@ CInputStream::CInputStream(const AddonProps& props,
   {
     StringUtils::Trim(ext);
   }
+}
+
+bool CInputStream::CheckAPIVersion()
+{
+  std::string dllVersion = m_pStruct->GetApiVersion();
+  if (dllVersion.compare(INPUTSTREAM_API_VERSION) != 0)
+  {
+    CLog::Log(LOGERROR, "CInputStream::CheckAPIVersion - API version does not match");
+    return false;
+  }
+
+  return true;
 }
 
 void CInputStream::SaveSettings()
@@ -449,22 +462,6 @@ void CInputStream::EnableStream(int iStreamId, bool enable)
   catch (std::exception &e)
   {
     CLog::Log(LOGERROR, "CInputStream::EnableStream - error. Reason: %s", e.what());
-  }
-}
-
-void CInputStream::EnableStreamAtPTS(int iStreamId, uint64_t pts)
-{
-  std::map<int, CDemuxStream*>::iterator it = m_streams.find(iStreamId);
-  if (it == m_streams.end())
-    return;
-
-  try
-  {
-    m_pStruct->EnableStreamAtPTS(it->second->uniqueId, pts);
-  }
-  catch (std::exception &e)
-  {
-    CLog::Log(LOGERROR, "CInputStream::EnableStreamAtPTS - error. Reason: %s", e.what());
   }
 }
 

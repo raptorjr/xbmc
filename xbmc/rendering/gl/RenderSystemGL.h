@@ -18,9 +18,6 @@
  *
  */
 
-#ifndef RENDER_SYSTEM_GL_H
-#define RENDER_SYSTEM_GL_H
-
 #pragma once
 
 #include "system.h"
@@ -45,7 +42,6 @@ public:
 
   void SetVSync(bool vsync);
   void ResetVSync() { m_bVsyncInit = false; }
-  void FinishPipeline() override;
 
   void SetViewPort(CRect& viewPort) override;
   void GetViewPort(CRect& viewPort) override;
@@ -76,20 +72,14 @@ protected:
   virtual void PresentRenderImpl(bool rendered) = 0;
   void CalculateMaxTexturesize();
 
-  int        m_iVSyncMode;
-  int        m_iVSyncErrors;
-  bool       m_bVsyncInit;
-  int        m_width;
-  int        m_height;
+  bool m_bVsyncInit;
+  int m_width;
+  int m_height;
 
   std::string m_RenderExtensions;
 
-  int        m_glslMajor = 0;
-  int        m_glslMinor = 0;
+  int m_glslMajor = 0;
+  int m_glslMinor = 0;
   
-  GLint      m_viewPort[4];
-
-  uint8_t m_latencyCounter = 0;
+  GLint m_viewPort[4];
 };
-
-#endif // RENDER_SYSTEM_H

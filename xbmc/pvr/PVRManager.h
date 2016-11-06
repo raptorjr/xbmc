@@ -25,9 +25,11 @@
 #include "settings/lib/ISettingCallback.h"
 #include "threads/Event.h"
 #include "threads/Thread.h"
+#include "utils/EventStream.h"
 #include "utils/JobManager.h"
 #include "utils/Observer.h"
 
+#include "pvr/PVREvent.h"
 #include "pvr/recordings/PVRRecording.h"
 
 #include <map>
@@ -59,16 +61,6 @@ namespace PVR
   class CPVRGUIInfo;
   class CPVRDatabase;
   class CGUIWindowPVRCommon;
-
-  enum ManagerState
-  {
-    ManagerStateError = 0,
-    ManagerStateStopped,
-    ManagerStateStarting,
-    ManagerStateStopping,
-    ManagerStateInterrupted,
-    ManagerStateStarted
-  };
 
   enum PlaybackType
   {
@@ -161,6 +153,11 @@ private:
      * @brief Init PVRManager.
      */
     void Init(void);
+
+    /*!
+     * @brief Reinit PVRManager.
+     */
+    void Reinit(void);
 
     /*!
      * @brief Stop the PVRManager and destroy all objects it created.
@@ -559,6 +556,27 @@ private:
      */
     void ConnectionStateChange(int clientId, std::string connectString, PVR_CONNECTION_STATE state, std::string message);
 
+    /*!
+     * @brief Explicitly set the state of channel preview. This is when channel is displayed on OSD without actually switching
+     */
+    void SetChannelPreview(bool preview);
+
+    /*!
+     * @brief Query the state of channel preview
+     */
+    bool IsChannelPreview() const;
+
+    /*!
+     * @brief Query the events available for CEventStream
+     */
+    CEventStream<PVREvent>& Events() { return m_events; }
+
+    /*!
+     * @brief Publish an event
+     * @param state the event
+     */
+    void PublishEvent(PVREvent state);
+
   protected:
     /*!
      * @brief Start the PVRManager, which loads all PVR data and starts some threads to update the PVR data.
@@ -571,6 +589,18 @@ private:
     virtual void Process(void) override;
 
   private:
+    /*!
+     * @brief Show or update the progress dialog.
+     * @param strText The current status.
+     * @param iProgress The current progress in %.
+     */
+    void ShowProgressDialog(const std::string &strText, int iProgress);
+
+    /*!
+     * @brief Hide the progress dialog if it's visible.
+     */
+    void HideProgressDialog(void);
+
     /*!
      * @brief Load at least one client and load all other PVR data after loading the client.
      * If some clients failed to load here, the pvrmanager will retry to load them every second.
@@ -599,18 +629,6 @@ private:
      */
     bool ContinueLastChannel(void);
 
-    /*!
-     * @brief Show or update the progress dialog.
-     * @param strText The current status.
-     * @param iProgress The current progress in %.
-     */
-    void ShowProgressDialog(const std::string &strText, int iProgress);
-
-    /*!
-     * @brief Hide the progress dialog if it's visible.
-     */
-    void HideProgressDialog(void);
-
     void ExecutePendingJobs(void);
 
     bool IsJobPending(const char *strJobName) const;
@@ -621,6 +639,16 @@ private:
      * @param job the job
      */
     void QueueJob(CJob *job);
+
+    enum ManagerState
+    {
+      ManagerStateError = 0,
+      ManagerStateStopped,
+      ManagerStateStarting,
+      ManagerStateStopping,
+      ManagerStateInterrupted,
+      ManagerStateStarted
+    };
 
     ManagerState GetState(void) const;
 
@@ -654,7 +682,9 @@ private:
     CCriticalSection                m_managerStateMutex;
     ManagerState                    m_managerState;
     std::unique_ptr<CStopWatch>     m_parentalTimer;
-    static const int                m_pvrWindowIds[12];
+
+    std::atomic_bool m_isChannelPreview;
+    CEventSource<PVREvent> m_events;
   };
 
   class CPVRStartupJob : public CJob

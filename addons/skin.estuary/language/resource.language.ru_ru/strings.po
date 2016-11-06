@@ -32,6 +32,10 @@ msgctxt "#31005"
 msgid "Watch as 2D"
 msgstr "Смотреть в 2D"
 
+msgctxt "#31006"
+msgid "Random movies"
+msgstr "Случайные фильмы"
+
 msgctxt "#31007"
 msgid "Unwatched movies"
 msgstr "Не просмотреные фильмы"
@@ -39,6 +43,14 @@ msgstr "Не просмотреные фильмы"
 msgctxt "#31009"
 msgid "Download icons"
 msgstr "Загрузить иконки"
+
+msgctxt "#31010"
+msgid "In progress movies"
+msgstr "Просматриваемые фильмы"
+
+msgctxt "#31011"
+msgid "Most played albums"
+msgstr "Самые проигрываемые альбомы"
 
 msgctxt "#31012"
 msgid "Random albums"
@@ -108,6 +120,10 @@ msgctxt "#31032"
 msgid "Order"
 msgstr "Порядок"
 
+msgctxt "#31033"
+msgid "Your rating"
+msgstr "Ваш рейтинг"
+
 msgctxt "#31034"
 msgid "Extended info"
 msgstr "Дополнительная информация"
@@ -119,6 +135,10 @@ msgstr "Страницы"
 msgctxt "#31036"
 msgid "items"
 msgstr "Объекты"
+
+msgctxt "#31037"
+msgid "Tracklist"
+msgstr "Треклист"
 
 msgctxt "#31038"
 msgid "Rewind"
@@ -176,6 +196,10 @@ msgctxt "#31054"
 msgid "Press [B]Left[/B] to rewind, or [B]Right[/B] to fast-forward"
 msgstr "Нажмите [B]Влево[/B] для перемотки назад или [B]Вправо[/B] для перемотки вперед"
 
+msgctxt "#31057"
+msgid "Show login screen on startup"
+msgstr "Показывать экран входа при запуске"
+
 msgctxt "#31059"
 msgid "Updates available"
 msgstr "Доступны обновления"
@@ -183,6 +207,18 @@ msgstr "Доступны обновления"
 msgctxt "#31060"
 msgid "minutes"
 msgstr "мин."
+
+msgctxt "#31061"
+msgid "Main menu items"
+msgstr "Элементы главного меню"
+
+msgctxt "#31065"
+msgid "Video playlist"
+msgstr "Плейлист видео"
+
+msgctxt "#31066"
+msgid "Music playlist"
+msgstr "Музыкальный плейлист"
 
 msgctxt "#31067"
 msgid "Event log"
@@ -199,6 +235,10 @@ msgstr "Добавить источники медиаданных"
 msgctxt "#31072"
 msgid "Power Options"
 msgstr "Настройки питания"
+
+msgctxt "#31075"
+msgid "Movie sets"
+msgstr "Киноциклы"
 
 msgctxt "#31081"
 msgid "Album info"
@@ -287,3 +327,19 @@ msgstr "Телетекст"
 msgctxt "#31107"
 msgid "WideList"
 msgstr "Широкий список"
+
+msgctxt "#31122"
+msgid "Unwatched TV Shows"
+msgstr "Не просмотренные сериалы"
+
+msgctxt "#31132"
+msgid "min"
+msgstr "мин"
+
+msgctxt "#31133"
+msgid "Hide"
+msgstr "Скрыть"
+
+msgctxt "#31134"
+msgid "Remaining"
+msgstr "Осталось"

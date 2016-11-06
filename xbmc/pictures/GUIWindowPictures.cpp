@@ -114,11 +114,6 @@ bool CGUIWindowPictures::OnMessage(CGUIMessage& message)
         message.SetStringParam(CMediaSourceSettings::GetInstance().GetDefaultSource("pictures"));
 
       m_dlgProgress = (CGUIDialogProgress*)g_windowManager.GetWindow(WINDOW_DIALOG_PROGRESS);
-
-      if (!CGUIMediaWindow::OnMessage(message))
-        return false;
-
-      return true;
     }
     break;
 
@@ -472,7 +467,8 @@ void CGUIWindowPictures::GetContextButtons(int itemNumber, CContextButtons &butt
       {
         if (!(item->m_bIsFolder || item->IsZIP() || item->IsRAR() || item->IsCBZ() || item->IsCBR() || item->IsScript()))
         {
-          buttons.Add(CONTEXT_BUTTON_INFO, 13406); // picture info
+          if (item->IsPicture())
+            buttons.Add(CONTEXT_BUTTON_INFO, 13406); // picture info
           buttons.Add(CONTEXT_BUTTON_VIEW_SLIDESHOW, item->m_bIsFolder ? 13317 : 13422);      // View Slideshow
         }
         if (item->m_bIsFolder)
@@ -587,7 +583,7 @@ void CGUIWindowPictures::LoadPlayList(const std::string& strPlayList)
 
 void CGUIWindowPictures::OnItemInfo(int itemNumber)
 {
-  CFileItemPtr item = (itemNumber >= 0 && itemNumber < m_vecItems->Size()) ? m_vecItems->Get(itemNumber) : CFileItemPtr();
+  CFileItemPtr item = m_vecItems->Get(itemNumber);
   if (!item)
     return;
   if (!m_vecItems->IsPlugin() && (item->IsPlugin() || item->IsScript()))
@@ -607,8 +603,8 @@ void CGUIWindowPictures::OnItemInfo(int itemNumber)
 
 std::string CGUIWindowPictures::GetStartFolder(const std::string &dir)
 {
-  std::string lower(dir); StringUtils::ToLower(lower);
-  if (lower == "plugins" || lower == "addons")
+  if (StringUtils::EqualsNoCase(dir, "plugins") ||
+      StringUtils::EqualsNoCase(dir, "addons"))
     return "addons://sources/image/";
 
   SetupShares();

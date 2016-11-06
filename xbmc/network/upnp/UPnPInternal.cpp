@@ -315,7 +315,7 @@ PopulateObjectFromTag(CVideoInfoTag&         tag,
     object.m_XbmcInfo.date_added = tag.m_dateAdded.GetAsW3CDate().c_str();
     object.m_XbmcInfo.rating = tag.GetRating().rating;
     object.m_XbmcInfo.votes = tag.GetRating().votes;
-    object.m_XbmcInfo.unique_identifier = tag.m_strIMDBNumber.c_str();
+    object.m_XbmcInfo.unique_identifier = tag.GetUniqueID().c_str();
     for (const auto& country : tag.m_country)
       object.m_XbmcInfo.countries.Add(country.c_str());
     object.m_XbmcInfo.user_rating = tag.m_iUserRating;
@@ -655,8 +655,7 @@ BuildObject(CFileItem&                    item,
 
             for (unsigned int i = 0; i < subtitles.size(); i++)
             {
-                ExternalStreamInfo info;
-                CUtil::GetExternalStreamDetailsFromFilename(file_path.GetChars(), subtitles[i], info);
+                ExternalStreamInfo info = CUtil::GetExternalStreamDetailsFromFilename(file_path.GetChars(), subtitles[i]);
 
                 if (preferredLanguageCode == info.language)
                 {
@@ -819,8 +818,8 @@ PopulateTagFromObject(CVideoInfoTag&         tag,
         tag.m_studio.push_back(object.m_People.publisher.GetItem(index)->GetChars());
 
     tag.m_dateAdded.SetFromW3CDate((const char*)object.m_XbmcInfo.date_added);
-    tag.AddRating(object.m_XbmcInfo.rating, object.m_XbmcInfo.votes);
-    tag.m_strIMDBNumber = object.m_XbmcInfo.unique_identifier;
+    tag.SetRating(object.m_XbmcInfo.rating, object.m_XbmcInfo.votes);
+    tag.SetUniqueID(object.m_XbmcInfo.unique_identifier.GetChars());
     for (unsigned int index = 0; index < object.m_XbmcInfo.countries.GetItemCount(); index++)
       tag.m_country.push_back(object.m_XbmcInfo.countries.GetItem(index)->GetChars());
     tag.m_iUserRating = object.m_XbmcInfo.user_rating;

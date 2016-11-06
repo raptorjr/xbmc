@@ -15,6 +15,7 @@ testMain
 *~
 # CLion
 /.idea
+.vscode/
 
 # generated files etc
 config.cache
@@ -37,6 +38,7 @@ config.log
 *.bak
 *.apk
 *.class
+*.dwo
 
 # Windows specific generated files
 *.exp
@@ -53,6 +55,7 @@ config.log
 *.idb
 *ReSharper*
 *.idb
+*.diagsession
 
 # osx specifics
 /build/
@@ -68,6 +71,7 @@ config.log
 *xcuserdata
 .libs/
 .deps/
+__.SYMDEF*
 
 # CMake project files
 CMakeCache.txt
@@ -111,6 +115,7 @@ cmake_install.cmake
 /git_revision.h
 /libtool
 /*.patch
+/kodi-build/
 
 # /addons/
 /addons/packages
@@ -119,7 +124,6 @@ cmake_install.cmake
 /addons/skin.estouchy/media/Makefile
 /addons/skin.estouchy/media/Textures.xbt
 /addons/skin.pm3-hd/media/Textures.xbt
-/addons/visualization.itunes/iTunes.mvis
 /addons/script.module.pil/
 /addons/audioencoder.*
 /addons/pvr.*
@@ -129,6 +133,9 @@ cmake_install.cmake
 /addons/xbmc.json/addon.xml
 /addons/kodi.guilib/addon.xml
 /addons/audiodecoder.*
+/addons/visualization.*
+/addons/screensaver.*
+/addons/inputstream.*
 
 # /lib/
 /lib/Makefile
@@ -181,11 +188,13 @@ cmake_install.cmake
 /lib/cpluff/*/*/*/*/Makefile
 /lib/cpluff/po/*template
 /lib/cpluff/po/*header
+lib/cpluff/console/cpluff-console
 lib/cpluff/examples/cpfile/cpfile
 lib/cpluff/libcpluff/cpluffdef.h
 lib/cpluff/libcpluff/docsrc/Doxyfile-impl
 lib/cpluff/libcpluff/docsrc/Doxyfile-ref
 lib/cpluff/libtool
+lib/cpluff/loader/cpluff-loader
 lib/cpluff/po/POTFILES
 lib/cpluff/stamp-h1
 
@@ -224,7 +233,6 @@ lib/cpluff/stamp-h1
 
 # /project/cmake
 /project/cmake/KodiConfig.cmake
-/project/cmake/XBMCConfig.cmake
 /project/cmake/addons/*.error
 /project/cmake/addons/.failure
 /project/cmake/addons/.success
@@ -243,7 +251,7 @@ lib/cpluff/stamp-h1
 /project/Win32BuildSetup/makeclean
 /project/Win32BuildSetup/noprompt
 /project/Win32BuildSetup/BUILD_WIN32/
-/project/Win32BuildSetup/dependencies
+/project/Win32BuildSetup/dependencies/
 
 # /project/BuildDependencies
 /project/BuildDependencies/downloads
@@ -261,43 +269,38 @@ lib/cpluff/stamp-h1
 /project/BuildDependencies/bin/doxygen
 /project/BuildDependencies/bin/json-rpc
 
-# /project/VS2010Express
-/project/VS2010Express/Debug
-/project/VS2010Express/Release
-/project/VS2010Express/XBMC
-/project/VS2010Express/glib
-/project/VS2010Express/guilib
-/project/VS2010Express/libPlatinum
-/project/VS2010Express/UnrarXLib
-/project/VS2010Express/test-XbmcThreads
-/project/VS2010Express/libs
-/project/VS2010Express/objs
-/project/VS2010Express/ipch
-/project/VS2010Express/shaders
-/project/VS2010Express/*.vsp
-/project/VS2010Express/*.metaproj
-/project/VS2010Express/*.metaproj.tmp
-/project/VS2010Express/.vs
-/project/VS2010Express/XBMC for Windows.VC.opendb
-
 # /system
 /system/cpluff.dll
+/system/EasyHook32.dll
 /system/libcurl.dll
 /system/libeay32.dll
 /system/librtmp.dll
 /system/libexif.dll
-/system/libexpat.dll
-/system/libidn-11.dll
-/system/libssh2.dll
-/system/libssl32.dll
 /system/ssh.dll
 /system/sqlite3.dll
 /system/libnfs.dll
 /system/dnssd.dll
-/system/libcec.dll
-/system/pthreadVC2.dll
+/system/cec.dll
 /system/libxslt.dll
 /system/ssleay32.dll
+/system/avcodec-57.dll
+/system/avfilter-6.dll
+/system/avformat-57.dll
+/system/avutil-55.dll
+/system/postproc-54.dll
+/system/swscale-4.dll
+/system/swresample-2.dll
+/system/libxml2.dll
+/system/libdvdcss-2.dll
+/system/libdvdnav.dll
+/system/libass.dll
+/system/libbluray*
+/system/libcdio.dll
+/system/libplist.dll
+/system/shairplay.dll
+/system/libmysql.dll
+/system/python27.dll
+/system/zlib.dll
 
 # /system/players/VideoPlayer
 /system/players/VideoPlayer/*
@@ -312,9 +315,6 @@ lib/cpluff/stamp-h1
 /system/webserver
 
 /system/airplay
-
-# /system
-/system/zlib1.dll
 
 #/tools/android
 /tools/android/packaging/Makefile
@@ -350,6 +350,7 @@ lib/cpluff/stamp-h1
 /tools/depends/target/libdvdread/native/
 /tools/depends/target/Toolchain_binaddons.cmake
 /tools/depends/target/config-binaddons.site
+/tools/depends/target/binary-addons/native
 
 # /tools/EventClients/
 /tools/EventClients/*.pyc
@@ -381,6 +382,10 @@ lib/cpluff/stamp-h1
 /tools/TexturePacker/TexturePacker*
 /tools/TexturePacker/Makefile
 /tools/TexturePacker/*.dll
+
+# /tools/buildsteps/win32
+/tools/buildsteps/win32/1
+/tools/buildsteps/win32/4
 
 # /userdata/
 /userdata/Database
@@ -499,10 +504,10 @@ lib/cpluff/stamp-h1
 #/xbmc/utils
 /xbmc/utils/Makefile
 
-#/xbmc/win32/
-/xbmc/win32/XBMC_PC.rc
+#/xbmc/platform/win32/
+/xbmc/platform/win32/XBMC_PC.rc
 # no longer used
-/xbmc/win32/git_rev.h
+/xbmc/platform/win32/git_rev.h
 
 # /xbmc/windowing/
 /xbmc/windowing/Makefile
@@ -551,13 +556,12 @@ lib/cpluff/stamp-h1
 
 # Doxygen generated files
 /docs/html
-system/libmysql.dll
-system/python27.dll
-system/zlib.dll
 lib/addons/library.kodi.inputstream/project/VS2010Express/Debug
 lib/addons/library.kodi.inputstream/project/VS2010Express/Release
-/project/VS2010Express/XBMC for Windows.VC.db
-/project/VS2010Express/XBMC for Windows.VC.VC.opendb
 tools/depends/native/TexturePacker/src/Win32/Debug/
 tools/depends/native/TexturePacker/src/Win32/Release/
 tools/depends/native/TexturePacker/src/Win32/TexturePacker.VC.db
+exclude_dll.txt
+
+#certificates
+/system/certs/

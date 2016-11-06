@@ -35,6 +35,7 @@
 #include "utils/Variant.h"
 #include "input/Key.h"
 #include "utils/StringUtils.h"
+#include "utils/SeekHandler.h"
 
 #include "windows/GUIWindowHome.h"
 #include "events/windows/GUIWindowEventLog.h"
@@ -79,6 +80,9 @@
 #include "dialogs/GUIDialogTextViewer.h"
 #include "network/GUIDialogNetworkSetup.h"
 #include "dialogs/GUIDialogMediaSource.h"
+#ifdef HAS_GL
+#include "video/dialogs/GUIDialogCMSSettings.h"
+#endif
 #include "video/dialogs/GUIDialogVideoSettings.h"
 #include "video/dialogs/GUIDialogAudioSubtitleSettings.h"
 #include "video/dialogs/GUIDialogVideoBookmarks.h"
@@ -103,6 +107,7 @@
 #include "dialogs/GUIDialogButtonMenu.h"
 #include "dialogs/GUIDialogContextMenu.h"
 #include "dialogs/GUIDialogPlayerControls.h"
+#include "dialogs/GUIDialogPlayerProcessInfo.h"
 #include "music/dialogs/GUIDialogSongInfo.h"
 #include "dialogs/GUIDialogSmartPlaylistEditor.h"
 #include "dialogs/GUIDialogSmartPlaylistRule.h"
@@ -210,9 +215,13 @@ void CGUIWindowManager::CreateWindows()
   Add(new CGUIDialogGamepad);
   Add(new CGUIDialogButtonMenu);
   Add(new CGUIDialogPlayerControls);
+  Add(new CGUIDialogPlayerProcessInfo);
   Add(new CGUIDialogSlider);
   Add(new CGUIDialogMusicOSD);
   Add(new CGUIDialogVisualisationPresetList);
+#ifdef HAS_GL
+  Add(new CGUIDialogCMSSettings);
+#endif
   Add(new CGUIDialogVideoSettings);
   Add(new CGUIDialogAudioSubtitleSettings);
   Add(new CGUIDialogVideoBookmarks);
@@ -315,6 +324,7 @@ bool CGUIWindowManager::DestroyWindows()
     Delete(WINDOW_DIALOG_BUTTON_MENU);
     Delete(WINDOW_DIALOG_CONTEXT_MENU);
     Delete(WINDOW_DIALOG_PLAYER_CONTROLS);
+    Delete(WINDOW_DIALOG_PLAYER_PROCESS_INFO);
     Delete(WINDOW_DIALOG_MUSIC_OSD);
     Delete(WINDOW_DIALOG_VIS_PRESET_LIST);
     Delete(WINDOW_DIALOG_SELECT);
@@ -326,6 +336,7 @@ bool CGUIWindowManager::DestroyWindows()
     Delete(WINDOW_DIALOG_LOCK_SETTINGS);
     Delete(WINDOW_DIALOG_NETWORK_SETUP);
     Delete(WINDOW_DIALOG_MEDIA_SOURCE);
+    Delete(WINDOW_DIALOG_CMS_OSD_SETTINGS);
     Delete(WINDOW_DIALOG_VIDEO_OSD_SETTINGS);
     Delete(WINDOW_DIALOG_AUDIO_OSD_SETTINGS);
     Delete(WINDOW_DIALOG_VIDEO_BOOKMARKS);
@@ -395,11 +406,10 @@ bool CGUIWindowManager::DestroyWindows()
     Delete(WINDOW_WEATHER);
     Delete(WINDOW_DIALOG_GAME_CONTROLLERS);
 
-    Remove(WINDOW_SETTINGS_SYSTEM);
     Remove(WINDOW_SETTINGS_SERVICE);
     Remove(WINDOW_SETTINGS_MYPVR);
     Remove(WINDOW_SETTINGS_PLAYER);
-    Remove(WINDOW_SETTINGS_LIBRARY);
+    Remove(WINDOW_SETTINGS_MEDIA);
     Remove(WINDOW_SETTINGS_INTERFACE);
     Remove(WINDOW_DIALOG_KAI_TOAST);
 
@@ -641,9 +651,11 @@ void CGUIWindowManager::PreviousWindow()
   }
   // get the previous window in our stack
   if (m_windowHistory.size() < 2)
-  { // no previous window history yet - check if we should just activate home
+  {
+    // no previous window history yet - check if we should just activate home
     if (GetActiveWindow() != WINDOW_INVALID && GetActiveWindow() != WINDOW_HOME)
     {
+      CloseWindowSync(pCurrentWindow);
       ClearWindowHistory();
       ActivateWindow(WINDOW_HOME);
     }
@@ -657,6 +669,7 @@ void CGUIWindowManager::PreviousWindow()
   if (!pNewWindow)
   {
     CLog::Log(LOGERROR, "Unable to activate the previous window");
+    CloseWindowSync(pCurrentWindow);
     ClearWindowHistory();
     ActivateWindow(WINDOW_HOME);
     return;
@@ -1384,11 +1397,19 @@ int CGUIWindowManager::GetActiveWindowID()
     // check for LiveTV and switch to it's virtual window
     else if (g_PVRManager.IsStarted() && g_application.CurrentFileItem().HasPVRChannelInfoTag())
       iWin = WINDOW_FULLSCREEN_LIVETV;
+    // special casing for numeric seek
+    else if (CSeekHandler::GetInstance().HasTimeCode())
+      iWin = WINDOW_VIDEO_TIME_SEEK;
   }
-  // special casing for PVR radio
-  if (iWin == WINDOW_VISUALISATION && g_PVRManager.IsStarted() && g_application.CurrentFileItem().HasPVRChannelInfoTag())
-    iWin = WINDOW_FULLSCREEN_RADIO;
-
+  if (iWin == WINDOW_VISUALISATION)
+  {
+    // special casing for PVR radio
+    if (g_PVRManager.IsStarted() && g_application.CurrentFileItem().HasPVRChannelInfoTag())
+      iWin = WINDOW_FULLSCREEN_RADIO;
+    // special casing for numeric seek
+    else if (CSeekHandler::GetInstance().HasTimeCode())
+      iWin = WINDOW_VIDEO_TIME_SEEK;
+  }
   // Return the window id
   return iWin;
 }
@@ -1490,8 +1511,10 @@ void CGUIWindowManager::AddToWindowHistory(int newWindowID)
   { // found window in history
     m_windowHistory = historySave;
   }
-  else
-  { // didn't find window in history - add it to the stack
+  else if (newWindowID != WINDOW_SPLASH)
+  {
+    // didn't find window in history - add it to the stack
+    // but do not add the splash window to history, as we never want to travel back to it
     m_windowHistory.push(newWindowID);
   }
 }

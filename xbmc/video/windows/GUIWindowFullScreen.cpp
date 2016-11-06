@@ -43,6 +43,7 @@
 #include "windowing/WindowingFactory.h"
 #include "cores/IPlayer.h"
 #include "guiinfo/GUIInfoLabels.h"
+#include "video/ViewModeSettings.h"
 
 #include <stdio.h>
 #include <algorithm>
@@ -75,10 +76,6 @@ static CLinuxResourceCounter m_resourceCounter;
 CGUIWindowFullScreen::CGUIWindowFullScreen(void)
     : CGUIWindow(WINDOW_FULLSCREEN_VIDEO, "VideoFullScreen.xml")
 {
-  m_timeCodeStamp[0] = 0;
-  m_timeCodePosition = 0;
-  m_timeCodeShow = false;
-  m_timeCodeTimeout = 0;
   m_bShowViewModeInfo = false;
   m_dwShowViewModeTimeout = 0;
   m_bShowCurrentTime = false;
@@ -107,17 +104,6 @@ CGUIWindowFullScreen::~CGUIWindowFullScreen(void)
 
 bool CGUIWindowFullScreen::OnAction(const CAction &action)
 {
-  if (m_timeCodePosition > 0 && action.GetButtonCode())
-  { // check whether we have a mapping in our virtual videotimeseek "window" and have a select action
-    CKey key(action.GetButtonCode());
-    CAction timeSeek = CButtonTranslator::GetInstance().GetAction(WINDOW_VIDEO_TIME_SEEK, key, false);
-    if (timeSeek.GetID() == ACTION_SELECT_ITEM)
-    {
-      SeekToTimeCodeStamp(SEEK_ABSOLUTE);
-      return true;
-    }
-  }
-
   if (CSettings::GetInstance().GetBool(CSettings::SETTING_PVRPLAYBACK_CONFIRMCHANNELSWITCH) &&
       g_infoManager.IsPlayerChannelPreviewActive() &&
       (action.GetID() == ACTION_SELECT_ITEM || CButtonTranslator::GetInstance().GetGlobalAction(action.GetButtonCode()).GetID() == ACTION_SELECT_ITEM))
@@ -147,35 +133,6 @@ bool CGUIWindowFullScreen::OnAction(const CAction &action)
     }
     break;
 
-  case ACTION_PLAYER_PLAY:
-  case ACTION_PAUSE:
-    if (m_timeCodePosition > 0)
-    {
-      SeekToTimeCodeStamp(SEEK_ABSOLUTE);
-      return true;
-    }
-    break;
-
-  case ACTION_SMALL_STEP_BACK:
-  case ACTION_STEP_BACK:
-  case ACTION_BIG_STEP_BACK:
-  case ACTION_CHAPTER_OR_BIG_STEP_BACK:
-    if (m_timeCodePosition > 0)
-    {
-      SeekToTimeCodeStamp(SEEK_RELATIVE, SEEK_BACKWARD);
-      return true;
-    }
-    break;
-  case ACTION_STEP_FORWARD:
-  case ACTION_BIG_STEP_FORWARD:
-  case ACTION_CHAPTER_OR_BIG_STEP_FORWARD:
-    if (m_timeCodePosition > 0)
-    {
-      SeekToTimeCodeStamp(SEEK_RELATIVE, SEEK_FORWARD);
-      return true;
-    }
-    break;
-
   case ACTION_SHOW_OSD_TIME:
     m_bShowCurrentTime = !m_bShowCurrentTime;
     g_infoManager.SetShowTime(m_bShowCurrentTime);
@@ -194,31 +151,12 @@ bool CGUIWindowFullScreen::OnAction(const CAction &action)
       break;
     }
 
-  case REMOTE_0:
-  case REMOTE_1:
-  case REMOTE_2:
-  case REMOTE_3:
-  case REMOTE_4:
-  case REMOTE_5:
-  case REMOTE_6:
-  case REMOTE_7:
-  case REMOTE_8:
-  case REMOTE_9:
-    {
-      if (!g_application.CurrentFileItem().IsLiveTV())
-      {
-        ChangetheTimeCode(action.GetID());
-        return true;
-      }
-    }
-    break;
-
   case ACTION_ASPECT_RATIO:
     { // toggle the aspect ratio mode (only if the info is onscreen)
       if (m_bShowViewModeInfo)
       {
 #ifdef HAS_VIDEO_PLAYBACK
-        g_application.m_pPlayer->SetRenderViewMode(++CMediaSettings::GetInstance().GetCurrentVideoSettings().m_ViewMode);
+        g_application.m_pPlayer->SetRenderViewMode(CViewModeSettings::GetNextQuickCycleViewMode(CMediaSettings::GetInstance().GetCurrentVideoSettings().m_ViewMode));
 #endif
       }
       m_bShowViewModeInfo = true;
@@ -262,7 +200,7 @@ void CGUIWindowFullScreen::OnWindowLoaded()
   m_clearBackground = 0;
 
   CGUIProgressControl* pProgress = dynamic_cast<CGUIProgressControl*>(GetControl(CONTROL_PROGRESS));
-  if(pProgress)
+  if (pProgress)
   {
     if( pProgress->GetInfo() == 0 || !pProgress->HasVisibleCondition())
     {
@@ -361,7 +299,8 @@ EVENT_RESULT CGUIWindowFullScreen::OnMouseEvent(const CPoint &point, const CMous
 
 void CGUIWindowFullScreen::FrameMove()
 {
-  if (g_application.m_pPlayer->GetPlaySpeed() != 1)
+  float playspeed = g_application.m_pPlayer->GetPlaySpeed();
+  if (playspeed < 0.75 || playspeed > 1.55)
     g_infoManager.SetDisplayAfterSeek();
 
   if (!g_application.m_pPlayer->HasPlayer())
@@ -382,7 +321,7 @@ void CGUIWindowFullScreen::FrameMove()
       // get the "View Mode" string
       std::string strTitle = g_localizeStrings.Get(629);
       const auto& settings = CMediaSettings::GetInstance().GetCurrentVideoSettings();
-      int sId = settings.m_ViewMode == ViewModeStretch16x9Nonlin ? 644 : 630 + settings.m_ViewMode;
+      int sId = CViewModeSettings::GetViewModeStringIndex(settings.m_ViewMode);
       std::string strMode = g_localizeStrings.Get(sId);
       std::string strInfo = StringUtils::Format("%s : %s", strTitle.c_str(), strMode.c_str());
       CGUIMessage msg(GUI_MSG_LABEL_SET, GetID(), LABEL_ROW1);
@@ -433,43 +372,11 @@ void CGUIWindowFullScreen::FrameMove()
     }
   }
 
-  if (m_timeCodeShow && m_timeCodePosition != 0)
-  {
-    if ( (XbmcThreads::SystemClockMillis() - m_timeCodeTimeout) >= 2500)
-    {
-      m_timeCodeShow = false;
-      m_timeCodePosition = 0;
-    }
-    std::string strDispTime = "00:00:00";
-
-    CGUIMessage msg(GUI_MSG_LABEL_SET, GetID(), LABEL_ROW1);
-
-    for (int pos = 7, i = m_timeCodePosition; pos >= 0 && i > 0; pos--)
-    {
-      if (strDispTime[pos] != ':')
-      {
-        i -= 1;
-        strDispTime[pos] = (char)m_timeCodeStamp[i] + '0';
-      }
-    }
-
-    strDispTime += "/" + g_infoManager.GetDuration(TIME_FORMAT_HH_MM_SS) + " [" + g_infoManager.GetCurrentPlayTime(TIME_FORMAT_HH_MM_SS) + "]"; // duration [ time ]
-    msg.SetLabel(strDispTime);
-    OnMessage(msg);
-  }
-
   if (m_bShowViewModeInfo)
   {
     SET_CONTROL_VISIBLE(LABEL_ROW1);
     SET_CONTROL_VISIBLE(LABEL_ROW2);
     SET_CONTROL_VISIBLE(LABEL_ROW3);
-    SET_CONTROL_VISIBLE(BLUE_BAR);
-  }
-  else if (m_timeCodeShow)
-  {
-    SET_CONTROL_VISIBLE(LABEL_ROW1);
-    SET_CONTROL_HIDDEN(LABEL_ROW2);
-    SET_CONTROL_HIDDEN(LABEL_ROW3);
     SET_CONTROL_VISIBLE(BLUE_BAR);
   }
   else
@@ -506,52 +413,6 @@ void CGUIWindowFullScreen::RenderEx()
   CGUIWindow::RenderEx();
   g_graphicsContext.SetRenderingResolution(g_graphicsContext.GetVideoResolution(), false);
   g_application.m_pPlayer->Render(false, 255, false);
-}
-
-void CGUIWindowFullScreen::ChangetheTimeCode(int remote)
-{
-  if (remote >= REMOTE_0 && remote <= REMOTE_9)
-  {
-    m_timeCodeShow = true;
-    m_timeCodeTimeout = XbmcThreads::SystemClockMillis();
-
-    if (m_timeCodePosition < 6)
-      m_timeCodeStamp[m_timeCodePosition++] = remote - REMOTE_0;
-    else
-    {
-      // rotate around
-      for (int i = 0; i < 5; i++)
-        m_timeCodeStamp[i] = m_timeCodeStamp[i+1];
-      m_timeCodeStamp[5] = remote - REMOTE_0;
-    }
-  }
-}
-
-void CGUIWindowFullScreen::SeekToTimeCodeStamp(SEEK_TYPE type, SEEK_DIRECTION direction)
-{
-  double total = GetTimeCodeStamp();
-  if (type == SEEK_RELATIVE)
-    total = g_application.GetTime() + (((direction == SEEK_FORWARD) ? 1 : -1) * total);
-
-  if (total < g_application.GetTotalTime())
-    g_application.SeekTime(total);
-
-  m_timeCodePosition = 0;
-  m_timeCodeShow = false;
-}
-
-double CGUIWindowFullScreen::GetTimeCodeStamp()
-{
-  // Convert the timestamp into an integer
-  int tot = 0;
-  for (int i = 0; i < m_timeCodePosition; i++)
-    tot = tot * 10 + m_timeCodeStamp[i];
-
-  // Interpret result as HHMMSS
-  int s = tot % 100; tot /= 100;
-  int m = tot % 100; tot /= 100;
-  int h = tot % 100;
-  return h * 3600 + m * 60 + s;
 }
 
 void CGUIWindowFullScreen::SeekChapter(int iChapter)

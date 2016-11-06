@@ -23,6 +23,7 @@
 #if defined(TARGET_ANDROID)
 #include "../RenderCapture.h"
 
+#include "platform/android/activity/XBMCApp.h"
 #include "DVDCodecs/Video/DVDVideoCodecAndroidMediaCodec.h"
 #include "utils/log.h"
 
@@ -62,6 +63,11 @@ void CRendererMediaCodecSurface::AddVideoPictureHW(DVDVideoPicture &picture, int
 #endif
 }
 
+bool CRendererMediaCodecSurface::RenderUpdateCheckForEmptyField()
+{
+  return false;
+}
+
 void CRendererMediaCodecSurface::ReleaseBuffer(int idx)
 {
   YUVBUFFER &buf = m_buffers[idx];
@@ -78,17 +84,7 @@ int CRendererMediaCodecSurface::GetImageHook(YV12Image *image, int source, bool 
   return source;
 }
 
-bool CRendererMediaCodecSurface::IsGuiLayer()
-{
-  return false;
-}
-
 bool CRendererMediaCodecSurface::Supports(EINTERLACEMETHOD method)
-{
-  return false;
-}
-
-bool CRendererMediaCodecSurface::Supports(EDEINTERLACEMODE mode)
 {
   return false;
 }
@@ -102,8 +98,8 @@ CRenderInfo CRendererMediaCodecSurface::GetRenderInfo()
 {
   CRenderInfo info;
   info.formats = m_formats;
-  info.max_buffer_size = NUM_BUFFERS;
-  info.optimal_buffer_size = 2;
+  info.max_buffer_size = 4;
+  info.optimal_buffer_size = 3;
   return info;
 }
 
@@ -117,13 +113,11 @@ bool CRendererMediaCodecSurface::LoadShadersHook()
 
 bool CRendererMediaCodecSurface::RenderHook(int index)
 {
-  return true; // nothing to be done
-}
+  glClearColor(0,0,0,0);
+  glClear(GL_COLOR_BUFFER_BIT);
 
-bool CRendererMediaCodecSurface::RenderUpdateVideoHook(bool clear, DWORD flags, DWORD alpha)
-{
-  CDVDMediaCodecInfo *mci = static_cast<CDVDMediaCodecInfo *>(m_buffers[m_iYV12RenderBuffer].hwDec);
-  if (mci)
+  CDVDMediaCodecInfo *mci = static_cast<CDVDMediaCodecInfo *>(m_buffers[index].hwDec);
+  if (mci && !mci->IsReleased())
   {
     // this hack is needed to get the 2D mode of a 3D movie going
     RENDER_STEREO_MODE stereo_mode = g_graphicsContext.GetStereoMode();
@@ -155,7 +149,6 @@ bool CRendererMediaCodecSurface::RenderUpdateVideoHook(bool clear, DWORD flags, 
 
     mci->RenderUpdate(srcRect, dstRect);
   }
-
   return true;
 }
 
@@ -174,4 +167,3 @@ bool CRendererMediaCodecSurface::UploadTexture(int index)
   return true; // nothing todo
 }
 #endif
-

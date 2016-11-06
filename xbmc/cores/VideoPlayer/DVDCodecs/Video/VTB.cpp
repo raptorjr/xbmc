@@ -21,6 +21,7 @@
 #ifdef TARGET_DARWIN
 #include "platform/darwin/osx/CocoaInterface.h"
 #include "platform/darwin/DarwinUtils.h"
+#include "cores/VideoPlayer/Process/ProcessInfo.h"
 #include "DVDVideoCodec.h"
 #include "DVDCodecs/DVDCodecUtils.h"
 #include "utils/log.h"
@@ -34,7 +35,7 @@ extern "C" {
 using namespace VTB;
 
 
-CDecoder::CDecoder()
+CDecoder::CDecoder(CProcessInfo& processInfo) : m_processInfo(processInfo)
 {
   m_avctx = nullptr;
 }
@@ -85,6 +86,12 @@ bool CDecoder::Open(AVCodecContext *avctx, AVCodecContext* mainctx, enum AVPixel
 
   mainctx->pix_fmt = fmt;
   mainctx->hwaccel_context = avctx->hwaccel_context;
+
+  m_processInfo.SetVideoDeintMethod("none");
+
+  std::list<EINTERLACEMETHOD> deintMethods;
+  deintMethods.push_back(EINTERLACEMETHOD::VS_INTERLACEMETHOD_NONE);
+  m_processInfo.UpdateDeinterlacingMethods(deintMethods);
 
   return true;
 }

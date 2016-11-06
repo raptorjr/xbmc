@@ -34,6 +34,7 @@
 #include "RenderFormats.h"
 #include "guilib/GraphicContext.h"
 #include "BaseRenderer.h"
+#include "ColorManager.h"
 
 #include "threads/Event.h"
 
@@ -86,7 +87,6 @@ enum RenderMethod
   RENDER_VDPAU=0x08,
   RENDER_POT=0x10,
   RENDER_VAAPI=0x20,
-  RENDER_CVREF = 0x40,
 };
 
 enum RenderQuality
@@ -131,14 +131,11 @@ public:
   virtual void RenderUpdate(bool clear, DWORD flags = 0, DWORD alpha = 255);
   virtual void Update();
   virtual bool RenderCapture(CRenderCapture* capture);
-  virtual EINTERLACEMETHOD AutoInterlaceMethod();
   virtual CRenderInfo GetRenderInfo();
 
   // Feature support
   virtual bool SupportsMultiPassRendering();
   virtual bool Supports(ERENDERFEATURE feature);
-  virtual bool Supports(EDEINTERLACEMODE mode);
-  virtual bool Supports(EINTERLACEMETHOD method);
   virtual bool Supports(ESCALINGMETHOD method);
 
 protected:
@@ -183,6 +180,7 @@ protected:
   // hooks for HwDec Renderered
   virtual bool LoadShadersHook() { return false; };
   virtual bool RenderHook(int idx) { return false; };
+  virtual void AfterRenderHook(int idx) {};
 
   struct
   {
@@ -280,6 +278,17 @@ protected:
   bool  m_nonLinStretch;
   bool  m_nonLinStretchGui;
   float m_pixelRatio;
+
+  // color management
+  std::unique_ptr<CColorManager> m_ColorManager;
+  GLuint m_tCLUTTex;
+  uint16_t *m_CLUT;
+  int m_CLUTsize;
+  int m_cmsToken;
+  bool m_cmsOn;
+
+  bool LoadCLUT();
+  void DeleteCLUT();
 };
 
 

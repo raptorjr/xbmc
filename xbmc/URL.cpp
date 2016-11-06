@@ -37,16 +37,6 @@
 
 using namespace ADDON;
 
-CURL::CURL(const std::string& strURL1)
-{
-  Parse(strURL1);
-}
-
-CURL::CURL()
-{
-  m_iPort = 0;
-}
-
 CURL::~CURL()
 {
 }
@@ -190,7 +180,8 @@ void CURL::Parse(const std::string& strURL1)
      IsProtocol("image") ||
      IsProtocol("videodb") ||
      IsProtocol("musicdb") ||
-     IsProtocol("androidapp"))
+     IsProtocol("androidapp") ||
+     IsProtocol("pvr"))
     sep = "?";
   else
   if(  IsProtocolEqual(strProtocol2, "http")
@@ -357,21 +348,6 @@ void CURL::SetFileName(const std::string& strFileName)
   StringUtils::ToLower(m_strFileType);
 }
 
-void CURL::SetHostName(const std::string& strHostName)
-{
-  m_strHostName = strHostName;
-}
-
-void CURL::SetUserName(const std::string& strUserName)
-{
-  m_strUserName = strUserName;
-}
-
-void CURL::SetPassword(const std::string& strPassword)
-{
-  m_strPassword = strPassword;
-}
-
 void CURL::SetProtocol(const std::string& strProtocol)
 {
   m_strProtocol = strProtocol;
@@ -411,57 +387,6 @@ void CURL::SetProtocolOptions(const std::string& strOptions)
   }
 }
 
-void CURL::SetPort(int port)
-{
-  m_iPort = port;
-}
-
-bool CURL::HasPort() const
-{
-  return (m_iPort != 0);
-}
-
-int CURL::GetPort() const
-{
-  return m_iPort;
-}
-
-
-const std::string& CURL::GetHostName() const
-{
-  return m_strHostName;
-}
-
-const std::string&  CURL::GetShareName() const
-{
-  return m_strShareName;
-}
-
-const std::string& CURL::GetDomain() const
-{
-  return m_strDomain;
-}
-
-const std::string& CURL::GetUserName() const
-{
-  return m_strUserName;
-}
-
-const std::string& CURL::GetPassWord() const
-{
-  return m_strPassword;
-}
-
-const std::string& CURL::GetFileName() const
-{
-  return m_strFileName;
-}
-
-const std::string& CURL::GetProtocol() const
-{
-  return m_strProtocol;
-}
-
 const std::string CURL::GetTranslatedProtocol() const
 {
   if (IsProtocol("shout")
@@ -473,21 +398,6 @@ const std::string CURL::GetTranslatedProtocol() const
     return "https";
 
   return GetProtocol();
-}
-
-const std::string& CURL::GetFileType() const
-{
-  return m_strFileType;
-}
-
-const std::string& CURL::GetOptions() const
-{
-  return m_strOptions;
-}
-
-const std::string& CURL::GetProtocolOptions() const
-{
-  return m_strProtocolOptions;
 }
 
 const std::string CURL::GetFileNameWithoutPath() const

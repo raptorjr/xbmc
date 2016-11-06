@@ -19,6 +19,8 @@
  *
  */
 
+#include "system.h"
+
 #include <math.h>
 #include <pthread.h>
 #include <string>
@@ -37,6 +39,8 @@
 #include "threads/Event.h"
 
 #include "JNIMainActivity.h"
+
+#include "guilib/Geometry.h"
 
 // forward delares
 class CJNIWakeLock;
@@ -121,9 +125,13 @@ public:
   static int GetMaxSystemVolume();
   static float GetSystemVolume();
   static void SetSystemVolume(float percent);
+  static void InitDirectories();
 
   static void SetRefreshRate(float rate);
+  static void SetDisplayMode(int mode);
   static int GetDPI();
+
+  static CRect MapRenderToDroid(const CRect& srcRect);
 
   // Playback callbacks
   static void OnPlayBackStarted();
@@ -145,6 +153,8 @@ public:
   static void InitFrameCallback(CVideoSyncAndroid *syncImpl);
   static void DeinitFrameCallback();
 
+  static bool WaitVSync(unsigned int milliSeconds);
+
   static CXBMCApp* get() { return m_xbmcappinstance; }
 
 protected:
@@ -163,6 +173,7 @@ private:
   void stop();
   void SetupEnv();
   static void SetRefreshRateCallback(CVariant *rate);
+  static void SetDisplayModeCallback(CVariant *mode);
   static ANativeActivity *m_activity;
   static CJNIWakeLock *m_wakeLock;
   static int m_batteryLevel;
@@ -180,6 +191,7 @@ private:
   static CEvent m_windowCreated;
 
   static CVideoSyncAndroid* m_syncImpl;
+  static CEvent m_vsyncEvent;
 
   void XBMC_Pause(bool pause);
   void XBMC_Stop();

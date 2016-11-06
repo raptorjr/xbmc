@@ -38,6 +38,7 @@
 #include "Application.h"
 #include "utils/LangCodeExpander.h"
 #include "utils/StringUtils.h"
+#include "video/ViewModeSettings.h"
 
 #define SETTING_VIDEO_VIEW_MODE           "video.viewmode"
 #define SETTING_VIDEO_ZOOM                "video.zoom"
@@ -52,7 +53,6 @@
 #define SETTING_VIDEO_VDPAU_NOISE         "vdpau.noise"
 #define SETTING_VIDEO_VDPAU_SHARPNESS     "vdpau.sharpness"
 
-#define SETTING_VIDEO_DEINTERLACEMODE     "video.deinterlacemode"
 #define SETTING_VIDEO_INTERLACEMETHOD     "video.interlacemethod"
 #define SETTING_VIDEO_SCALINGMETHOD       "video.scalingmethod"
 
@@ -81,9 +81,7 @@ void CGUIDialogVideoSettings::OnSettingChanged(const CSetting *setting)
   CVideoSettings &videoSettings = CMediaSettings::GetInstance().GetCurrentVideoSettings();
 
   const std::string &settingId = setting->GetId();
-  if (settingId == SETTING_VIDEO_DEINTERLACEMODE)
-    videoSettings.m_DeinterlaceMode = static_cast<EDEINTERLACEMODE>(static_cast<const CSettingInt*>(setting)->GetValue());
-  else if (settingId == SETTING_VIDEO_INTERLACEMETHOD)
+  if (settingId == SETTING_VIDEO_INTERLACEMETHOD)
     videoSettings.m_InterlaceMethod = static_cast<EINTERLACEMETHOD>(static_cast<const CSettingInt*>(setting)->GetValue());
   else if (settingId == SETTING_VIDEO_SCALINGMETHOD)
     videoSettings.m_ScalingMethod = static_cast<ESCALINGMETHOD>(static_cast<const CSettingInt*>(setting)->GetValue());
@@ -255,32 +253,20 @@ void CGUIDialogVideoSettings::InitializeSettings()
   CVideoSettings &videoSettings = CMediaSettings::GetInstance().GetCurrentVideoSettings();
   
   StaticIntegerSettingOptions entries;
-  if (g_application.m_pPlayer->Supports(VS_DEINTERLACEMODE_OFF))
-    entries.push_back(std::make_pair(16039, VS_DEINTERLACEMODE_OFF));
-  if (g_application.m_pPlayer->Supports(VS_DEINTERLACEMODE_AUTO))
-    entries.push_back(std::make_pair(16040, VS_DEINTERLACEMODE_AUTO));
-  if (g_application.m_pPlayer->Supports(VS_DEINTERLACEMODE_FORCE))
-    entries.push_back(std::make_pair(16041, VS_DEINTERLACEMODE_FORCE));
-  if (!entries.empty())
-    AddSpinner(groupVideo, SETTING_VIDEO_DEINTERLACEMODE, 16037, 0, static_cast<int>(videoSettings.m_DeinterlaceMode), entries);
 
   entries.clear();
+  entries.push_back(std::make_pair(16039, VS_INTERLACEMETHOD_NONE));
   entries.push_back(std::make_pair(16019, VS_INTERLACEMETHOD_AUTO));
   entries.push_back(std::make_pair(20131, VS_INTERLACEMETHOD_RENDER_BLEND));
-  entries.push_back(std::make_pair(20130, VS_INTERLACEMETHOD_RENDER_WEAVE_INVERTED));
   entries.push_back(std::make_pair(20129, VS_INTERLACEMETHOD_RENDER_WEAVE));
-  entries.push_back(std::make_pair(16022, VS_INTERLACEMETHOD_RENDER_BOB_INVERTED));
   entries.push_back(std::make_pair(16021, VS_INTERLACEMETHOD_RENDER_BOB));
   entries.push_back(std::make_pair(16020, VS_INTERLACEMETHOD_DEINTERLACE));
   entries.push_back(std::make_pair(16036, VS_INTERLACEMETHOD_DEINTERLACE_HALF));
-  entries.push_back(std::make_pair(16314, VS_INTERLACEMETHOD_INVERSE_TELECINE));
   entries.push_back(std::make_pair(16311, VS_INTERLACEMETHOD_VDPAU_TEMPORAL_SPATIAL));
   entries.push_back(std::make_pair(16310, VS_INTERLACEMETHOD_VDPAU_TEMPORAL));
   entries.push_back(std::make_pair(16325, VS_INTERLACEMETHOD_VDPAU_BOB));
   entries.push_back(std::make_pair(16318, VS_INTERLACEMETHOD_VDPAU_TEMPORAL_SPATIAL_HALF));
   entries.push_back(std::make_pair(16317, VS_INTERLACEMETHOD_VDPAU_TEMPORAL_HALF));
-  entries.push_back(std::make_pair(16314, VS_INTERLACEMETHOD_VDPAU_INVERSE_TELECINE));
-  entries.push_back(std::make_pair(16325, VS_INTERLACEMETHOD_AUTO_ION));
   entries.push_back(std::make_pair(16327, VS_INTERLACEMETHOD_VAAPI_BOB));
   entries.push_back(std::make_pair(16328, VS_INTERLACEMETHOD_VAAPI_MADI));
   entries.push_back(std::make_pair(16329, VS_INTERLACEMETHOD_VAAPI_MACI));
@@ -289,7 +275,9 @@ void CGUIDialogVideoSettings::InitializeSettings()
   entries.push_back(std::make_pair(16332, VS_INTERLACEMETHOD_MMAL_BOB));
   entries.push_back(std::make_pair(16333, VS_INTERLACEMETHOD_MMAL_BOB_HALF));
   entries.push_back(std::make_pair(16334, VS_INTERLACEMETHOD_IMX_FASTMOTION));
-  entries.push_back(std::make_pair(16335, VS_INTERLACEMETHOD_IMX_FASTMOTION_DOUBLE));
+  entries.push_back(std::make_pair(16335, VS_INTERLACEMETHOD_IMX_ADVMOTION_HALF));
+  entries.push_back(std::make_pair(16336, VS_INTERLACEMETHOD_IMX_ADVMOTION));
+  entries.push_back(std::make_pair(16320, VS_INTERLACEMETHOD_DXVA_AUTO));
 
   /* remove unsupported methods */
   for (StaticIntegerSettingOptions::iterator it = entries.begin(); it != entries.end(); )
@@ -302,14 +290,11 @@ void CGUIDialogVideoSettings::InitializeSettings()
 
   if (!entries.empty())
   {
-    CSettingInt *settingInterlaceMethod = AddSpinner(groupVideo, SETTING_VIDEO_INTERLACEMETHOD, 16038, 0, static_cast<int>(videoSettings.m_InterlaceMethod), entries);
-
-    CSettingDependency dependencyDeinterlaceModeOff(SettingDependencyTypeEnable, m_settingsManager);
-    dependencyDeinterlaceModeOff.And()
-      ->Add(CSettingDependencyConditionPtr(new CSettingDependencyCondition(SETTING_VIDEO_DEINTERLACEMODE, "0", SettingDependencyOperatorEquals, true, m_settingsManager)));
-    SettingDependencies depsDeinterlaceModeOff;
-    depsDeinterlaceModeOff.push_back(dependencyDeinterlaceModeOff);
-    settingInterlaceMethod->SetDependencies(depsDeinterlaceModeOff);
+    if (!g_application.m_pPlayer->Supports(videoSettings.m_InterlaceMethod))
+    {
+      videoSettings.m_InterlaceMethod = g_application.m_pPlayer->GetDeinterlacingMethodDefault();
+    }
+    AddSpinner(groupVideo, SETTING_VIDEO_INTERLACEMETHOD, 16038, 0, static_cast<int>(videoSettings.m_InterlaceMethod), entries);
   }
 
   entries.clear();
@@ -346,10 +331,7 @@ void CGUIDialogVideoSettings::InitializeSettings()
 
   if (g_application.m_pPlayer->Supports(RENDERFEATURE_STRETCH) || g_application.m_pPlayer->Supports(RENDERFEATURE_PIXEL_RATIO))
   {
-    entries.clear();
-    for (int i = 0; i < 7; ++i)
-      entries.push_back(std::make_pair(630 + i, i));
-    AddSpinner(groupVideo, SETTING_VIDEO_VIEW_MODE, 629, 0, videoSettings.m_ViewMode, entries);
+    AddList(groupVideo, SETTING_VIDEO_VIEW_MODE, 629, 0, videoSettings.m_ViewMode, CViewModeSettings::ViewModesFiller, 629);
   }
   if (g_application.m_pPlayer->Supports(RENDERFEATURE_ZOOM))
     AddSlider(groupVideo, SETTING_VIDEO_ZOOM, 216, 0, videoSettings.m_CustomZoomAmount, "%2.2f", 0.5f, 0.01f, 2.0f, 216, usePopup);
@@ -440,4 +422,3 @@ void CGUIDialogVideoSettings::VideoStreamsOptionFiller(const CSetting *setting, 
     current = -1;
   }
 }
-

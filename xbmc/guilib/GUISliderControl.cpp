@@ -85,7 +85,7 @@ void CGUISliderControl::Process(unsigned int currentTime, CDirtyRegionList &dirt
   dirty |= m_guiBackground.SetWidth(m_width);
   dirty |= m_guiBackground.Process(currentTime);
 
-  CGUITexture &nibLower = (m_bHasFocus && !IsDisabled() && m_currentSelector == RangeSelectorLower) ? m_guiSelectorLowerFocus : m_guiSelectorLower;
+  CGUITexture &nibLower = (IsActive() && m_bHasFocus && !IsDisabled() && m_currentSelector == RangeSelectorLower) ? m_guiSelectorLowerFocus : m_guiSelectorLower;
   float fScale;
   if (m_orientation == HORIZONTAL)
     fScale = m_height == 0 ? 1.0f : m_height / m_guiBackground.GetTextureHeight();
@@ -95,7 +95,7 @@ void CGUISliderControl::Process(unsigned int currentTime, CDirtyRegionList &dirt
   dirty |= ProcessSelector(nibLower, currentTime, fScale, RangeSelectorLower);
   if (m_rangeSelection)
   {
-    CGUITexture &nibUpper = (m_bHasFocus && !IsDisabled() && m_currentSelector == RangeSelectorUpper) ? m_guiSelectorUpperFocus : m_guiSelectorUpper;
+    CGUITexture &nibUpper = (IsActive() && m_bHasFocus && !IsDisabled() && m_currentSelector == RangeSelectorUpper) ? m_guiSelectorUpperFocus : m_guiSelectorUpper;
     if (m_orientation == HORIZONTAL)
       fScale = m_height == 0 ? 1.0f : m_height / m_guiBackground.GetTextureHeight();
     else
@@ -157,11 +157,11 @@ bool CGUISliderControl::ProcessSelector(CGUITexture &nib, unsigned int currentTi
 void CGUISliderControl::Render()
 {
   m_guiBackground.Render();
-  CGUITexture &nibLower = (m_bHasFocus && !IsDisabled() && m_currentSelector == RangeSelectorLower) ? m_guiSelectorLowerFocus : m_guiSelectorLower;
+  CGUITexture &nibLower = (IsActive() && m_bHasFocus && !IsDisabled() && m_currentSelector == RangeSelectorLower) ? m_guiSelectorLowerFocus : m_guiSelectorLower;
   nibLower.Render();
   if (m_rangeSelection)
   {
-    CGUITexture &nibUpper = (m_bHasFocus && !IsDisabled() && m_currentSelector == RangeSelectorUpper) ? m_guiSelectorUpperFocus : m_guiSelectorUpper;
+    CGUITexture &nibUpper = (IsActive() && m_bHasFocus && !IsDisabled() && m_currentSelector == RangeSelectorUpper) ? m_guiSelectorUpperFocus : m_guiSelectorUpper;
     nibUpper.Render();
   }
   CGUIControl::Render();
@@ -196,7 +196,7 @@ bool CGUISliderControl::OnAction(const CAction &action)
   switch ( action.GetID() )
   {
   case ACTION_MOVE_LEFT:
-    if (m_orientation == HORIZONTAL)
+    if (IsActive() && m_orientation == HORIZONTAL)
     {
       Move(-1);
       return true;
@@ -204,7 +204,7 @@ bool CGUISliderControl::OnAction(const CAction &action)
     break;
 
   case ACTION_MOVE_RIGHT:
-    if (m_orientation == HORIZONTAL)
+    if (IsActive() && m_orientation == HORIZONTAL)
     {
       Move(1);
       return true;
@@ -212,7 +212,7 @@ bool CGUISliderControl::OnAction(const CAction &action)
     break;
 
   case ACTION_MOVE_UP:
-    if (m_orientation == VERTICAL)
+    if (IsActive() && m_orientation == VERTICAL)
     {
       Move(1);
       return true;
@@ -220,7 +220,7 @@ bool CGUISliderControl::OnAction(const CAction &action)
     break;
 
   case ACTION_MOVE_DOWN:
-    if (m_orientation == VERTICAL)
+    if (IsActive() && m_orientation == VERTICAL)
     {
       Move(-1);
       return true;
@@ -228,7 +228,6 @@ bool CGUISliderControl::OnAction(const CAction &action)
     break;
 
   case ACTION_SELECT_ITEM:
-    // switch between the two sliders
     if (m_rangeSelection)
       SwitchRangeSelector();
     return true;
@@ -700,9 +699,9 @@ bool CGUISliderControl::UpdateColors()
 float CGUISliderControl::GetProportion(RangeSelector selector /* = RangeSelectorLower */) const
 {
   if (m_iType == SLIDER_CONTROL_TYPE_FLOAT)
-    return (GetFloatValue(selector) - m_fStart) / (m_fEnd - m_fStart);
+    return m_fStart != m_fEnd ? (GetFloatValue(selector) - m_fStart) / (m_fEnd - m_fStart) : 0.0f;
   else if (m_iType == SLIDER_CONTROL_TYPE_INT)
-    return (float)(GetIntValue(selector) - m_iStart) / (float)(m_iEnd - m_iStart);
+    return m_iStart != m_iEnd ? (float)(GetIntValue(selector) - m_iStart) / (float)(m_iEnd - m_iStart) : 0.0f;
   return 0.01f * GetPercentage(selector);
 }
 

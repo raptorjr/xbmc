@@ -29,6 +29,7 @@
 #include <d3d11.h>
 #include <Initguid.h>
 #include <windows.h>
+#include "cores/VideoPlayer/Process/ProcessInfo.h"
 #include "cores/VideoPlayer/VideoRenderers/RenderManager.h"
 #include "../DVDCodecUtils.h"
 #include "DXVA.h"
@@ -689,8 +690,9 @@ CRenderPicture::~CRenderPicture()
 // DXVA Decoder
 //-----------------------------------------------------------------------------
 
-CDecoder::CDecoder()
- : m_event(true)
+CDecoder::CDecoder(CProcessInfo& processInfo)
+ : m_event(true),
+   m_processInfo(processInfo)
 {
   m_event.Set();
   m_state     = DXVA_OPEN;
@@ -788,8 +790,25 @@ static bool HasVP3WidthBug(AVCodecContext *avctx)
   return false;
 }
 
+static bool HasATIMP2Bug(AVCodecContext *avctx)
+{
+  DXGI_ADAPTER_DESC AIdentifier = g_Windowing.GetAIdentifier();
+  if (AIdentifier.VendorId != PCIV_ATI)
+    return false;
+
+  // AMD/ATI card doesn't like some SD MPEG2 content
+  // here are params of these videos
+  return avctx->height <= 576
+      && avctx->colorspace == AVCOL_SPC_BT470BG
+      && avctx->color_primaries == AVCOL_PRI_BT470BG 
+      && avctx->color_trc == AVCOL_TRC_GAMMA28;
+}
+
 static bool CheckCompatibility(AVCodecContext *avctx)
 {
+  if (avctx->codec_id == AV_CODEC_ID_MPEG2VIDEO && HasATIMP2Bug(avctx))
+    return false;
+
   // The incompatibilities are all for H264
   if(avctx->codec_id != AV_CODEC_ID_H264)
     return true;
@@ -895,9 +914,11 @@ bool CDecoder::Open(AVCodecContext *avctx, AVCodecContext* mainctx, enum AVPixel
 
   avctx->get_buffer2 = GetBufferS;
   avctx->hwaccel_context = m_context;
+  avctx->slice_flags = SLICE_FLAG_ALLOW_FIELD | SLICE_FLAG_CODED_ORDER;
 
   mainctx->get_buffer2 = GetBufferS;
   mainctx->hwaccel_context = m_context;
+  mainctx->slice_flags = SLICE_FLAG_ALLOW_FIELD | SLICE_FLAG_CODED_ORDER;
 
   m_avctx = mainctx;
   DXGI_ADAPTER_DESC AIdentifier = g_Windowing.GetAIdentifier();
@@ -918,6 +939,12 @@ bool CDecoder::Open(AVCodecContext *avctx, AVCodecContext* mainctx, enum AVPixel
 #endif
   }
 
+  std::list<EINTERLACEMETHOD> deintMethods;
+  deintMethods.push_back(EINTERLACEMETHOD::VS_INTERLACEMETHOD_NONE);
+  deintMethods.push_back(EINTERLACEMETHOD::VS_INTERLACEMETHOD_DXVA_AUTO);
+  m_processInfo.UpdateDeinterlacingMethods(deintMethods);
+  m_processInfo.SetDeinterlacingMethodDefault(EINTERLACEMETHOD::VS_INTERLACEMETHOD_DXVA_AUTO);
+
   m_state = DXVA_OPEN;
   return true;
 }
@@ -929,12 +956,11 @@ int CDecoder::Decode(AVCodecContext* avctx, AVFrame* frame)
   if(result)
     return result;
 
-  SAFE_RELEASE(m_presentPicture);
-
   if(frame)
   {
     if (m_surface_context->IsValid(reinterpret_cast<ID3D11View*>(frame->data[3])))
     {
+      SAFE_RELEASE(m_presentPicture);
       m_presentPicture = new CRenderPicture(m_surface_context);
       m_presentPicture->view = reinterpret_cast<ID3D11View*>(frame->data[3]);
       m_surface_context->MarkRender(m_presentPicture->view);

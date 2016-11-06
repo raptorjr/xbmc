@@ -41,8 +41,7 @@ namespace PVR
 {
   class CPVRTimersPath;
 
-  class CPVRTimers : public Observer,
-                     public Observable
+  class CPVRTimers : public Observer
   {
   public:
     CPVRTimers(void);
@@ -65,9 +64,19 @@ namespace PVR
     bool UpdateFromClient(const CPVRTimerInfoTagPtr &timer);
 
     /*!
-     * @return The timer that will be active next (state scheduled), or an empty fileitemptr if none.
+     * @return The tv or radio timer that will be active next (state scheduled), or an empty fileitemptr if none.
      */
     CFileItemPtr GetNextActiveTimer(void) const;
+
+    /*!
+     * @return The tv timer that will be active next (state scheduled), or an empty fileitemptr if none.
+     */
+    CFileItemPtr GetNextActiveTVTimer(void) const;
+
+    /*!
+     * @return The radio timer that will be active next (state scheduled), or an empty fileitemptr if none.
+     */
+    CFileItemPtr GetNextActiveRadioTimer(void) const;
 
     /*!
      * @return All timers that are active (states scheduled or recording)
@@ -86,14 +95,34 @@ namespace PVR
     bool HasActiveTimers(void) const;
 
     /*!
-     * @return The amount of timers that are active (states scheduled or recording)
+     * @return The amount of tv and radio timers that are active (states scheduled or recording)
      */
     int AmountActiveTimers(void) const;
 
     /*!
-     * @return All timers that are recording
+     * @return The amount of tv timers that are active (states scheduled or recording)
+     */
+    int AmountActiveTVTimers(void) const;
+
+    /*!
+     * @return The amount of radio timers that are active (states scheduled or recording)
+     */
+    int AmountActiveRadioTimers(void) const;
+
+    /*!
+     * @return All tv and radio timers that are recording
      */
     std::vector<CFileItemPtr> GetActiveRecordings(void) const;
+
+    /*!
+     * @return All tv timers that are recording
+     */
+    std::vector<CFileItemPtr> GetActiveTVRecordings(void) const;
+
+    /*!
+     * @return All radio timers that are recording
+     */
+    std::vector<CFileItemPtr> GetActiveRadioRecordings(void) const;
 
     /*!
      * @return True when recording, false otherwise.
@@ -115,9 +144,19 @@ namespace PVR
     CPVRTimerInfoTagPtr GetActiveTimerForChannel(const CPVRChannelPtr &channel) const;
 
     /*!
-     * @return The amount of timers that are currently recording
+     * @return The amount of tv and radio timers that are currently recording
      */
     int AmountActiveRecordings(void) const;
+
+    /*!
+     * @return The amount of tv timers that are currently recording
+     */
+    int AmountActiveTVRecordings(void) const;
+
+    /*!
+     * @return The amount of radio timers that are currently recording
+     */
+    int AmountActiveRadioRecordings(void) const;
 
     /*!
      * @brief Get all timers for the given path.
@@ -130,11 +169,11 @@ namespace PVR
     /*!
      * @brief Delete all timers on a channel.
      * @param channel The channel to delete the timers for.
-     * @param bDeleteRepeating True to delete repeating events too, false otherwise.
+     * @param bDeleteTimerRules True to delete timer rules too, false otherwise.
      * @param bCurrentlyActiveOnly True to delete timers that are currently running only.
      * @return True if timers any were deleted, false otherwise.
      */
-    bool DeleteTimersOnChannel(const CPVRChannelPtr &channel, bool bDeleteRepeating = true, bool bCurrentlyActiveOnly = false);
+    bool DeleteTimersOnChannel(const CPVRChannelPtr &channel, bool bDeleteTimerRules = true, bool bCurrentlyActiveOnly = false);
 
     /*!
      * @return Next event time (timer or daily wake up)
@@ -210,6 +249,22 @@ namespace PVR
     CPVRTimerInfoTagPtr GetByClient(int iClientId, unsigned int iClientTimerId) const;
     bool GetRootDirectory(const CPVRTimersPath &path, CFileItemList &items) const;
     bool GetSubDirectory(const CPVRTimersPath &path, CFileItemList &items) const;
+    bool SetEpgTagTimer(const CPVRTimerInfoTagPtr &timer);
+    bool ClearEpgTagTimer(const CPVRTimerInfoTagPtr &timer);
+
+    enum TimerKind
+    {
+      TimerKindAny = 0,
+      TimerKindTV,
+      TimerKindRadio
+    };
+
+    bool KindMatchesTag(const TimerKind &eKind, const CPVRTimerInfoTagPtr &tag) const;
+
+    CFileItemPtr GetNextActiveTimer(const TimerKind &eKind) const;
+    int AmountActiveTimers(const TimerKind &eKind) const;
+    std::vector<CFileItemPtr> GetActiveRecordings(const TimerKind &eKind) const;
+    int AmountActiveRecordings(const TimerKind &eKind) const;
 
     CCriticalSection  m_critSection;
     bool              m_bIsUpdating;

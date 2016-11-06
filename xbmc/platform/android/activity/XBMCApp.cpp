@@ -18,6 +18,8 @@
  *
  */
 
+#include "XBMCApp.h"
+
 #include <sstream>
 
 #include <unistd.h>
@@ -50,6 +52,7 @@
 #include "platform/XbmcContext.h"
 #include <android/bitmap.h>
 #include "cores/AudioEngine/AEFactory.h"
+#include "cores/VideoPlayer/VideoRenderers/RenderManager.h"
 #include "platform/android/activity/IInputDeviceCallbacks.h"
 #include "platform/android/activity/IInputDeviceEventHandler.h"
 #include "platform/android/jni/JNIThreading.h"
@@ -73,12 +76,15 @@
 #include "platform/android/jni/ContentResolver.h"
 #include "platform/android/jni/MediaStore.h"
 #include "platform/android/jni/Build.h"
+#include "filesystem/SpecialProtocol.h"
 #if defined(HAS_LIBAMCODEC)
 #include "utils/AMLUtils.h"
 #endif
 #include "platform/android/jni/Window.h"
 #include "platform/android/jni/WindowManager.h"
 #include "platform/android/jni/KeyEvent.h"
+#include "platform/android/jni/Display.h"
+#include "platform/android/jni/View.h"
 #include "AndroidKey.h"
 
 #include "CompileInfo.h"
@@ -108,6 +114,7 @@ IInputDeviceEventHandler* CXBMCApp::m_inputDeviceEventHandler = nullptr;
 CCriticalSection CXBMCApp::m_applicationsMutex;
 std::vector<androidPackage> CXBMCApp::m_applications;
 CVideoSyncAndroid* CXBMCApp::m_syncImpl = NULL;
+CEvent CXBMCApp::m_vsyncEvent;
 
 
 CXBMCApp::CXBMCApp(ANativeActivity* nativeActivity)
@@ -167,6 +174,7 @@ void CXBMCApp::onResume()
   CJNIIntentFilter intentFilter;
   intentFilter.addAction("android.intent.action.BATTERY_CHANGED");
   intentFilter.addAction("android.intent.action.SCREEN_ON");
+  intentFilter.addAction("android.intent.action.HEADSET_PLUG");
   registerReceiver(*this, intentFilter);
 
   if (!g_application.IsInScreenSaver())
@@ -387,6 +395,7 @@ void CXBMCApp::run()
 
   android_printf("%s Started with action: %s\n", CCompileInfo::GetAppName(), startIntent.getAction().c_str());
 
+  CAppParamParser appParamParser;
   std::string filenameToPlay = GetFilenameFromIntent(startIntent);
   if (!filenameToPlay.empty())
   {
@@ -397,7 +406,6 @@ void CXBMCApp::run()
     argv[0] = exe_name.c_str();
     argv[1] = filenameToPlay.c_str();
 
-    CAppParamParser appParamParser;
     appParamParser.Parse((const char **)argv, argc);
 
     free(argv);
@@ -407,7 +415,7 @@ void CXBMCApp::run()
   android_printf(" => running XBMC_Run...");
   try
   {
-    status = XBMC_Run(true);
+    status = XBMC_Run(true, appParamParser.m_playlist);
     android_printf(" => XBMC_Run finished with %d", status);
   }
   catch(...)
@@ -474,6 +482,23 @@ void CXBMCApp::SetRefreshRateCallback(CVariant* rateVariant)
   }
 }
 
+void CXBMCApp::SetDisplayModeCallback(CVariant* modeVariant)
+{
+  int mode = modeVariant->asFloat();
+  delete modeVariant;
+
+  CJNIWindow window = getWindow();
+  if (window)
+  {
+    CJNIWindowManagerLayoutParams params = window.getAttributes();
+    if (params.getpreferredDisplayModeId() != mode)
+    {
+      params.setpreferredDisplayModeId(mode);
+      window.setAttributes(params);
+    }
+  }
+}
+
 void CXBMCApp::SetRefreshRate(float rate)
 {
   if (rate < 1.0)
@@ -481,6 +506,15 @@ void CXBMCApp::SetRefreshRate(float rate)
 
   CVariant *variant = new CVariant(rate);
   runNativeOnUiThread(SetRefreshRateCallback, variant);
+}
+
+void CXBMCApp::SetDisplayMode(int mode)
+{
+  if (mode < 1.0)
+    return;
+
+  CVariant *variant = new CVariant(mode);
+  runNativeOnUiThread(SetDisplayModeCallback, variant);
 }
 
 int CXBMCApp::android_printf(const char *format, ...)
@@ -506,6 +540,19 @@ int CXBMCApp::GetDPI()
   AConfiguration_delete(config);
 
   return dpi;
+}
+
+CRect CXBMCApp::MapRenderToDroid(const CRect& srcRect)
+{
+  float scaleX = 1.0;
+  float scaleY = 1.0;
+
+  CJNIRect r = m_xbmcappinstance->getVideoViewSurfaceRect();
+  RESOLUTION_INFO renderRes = g_graphicsContext.GetResInfo(g_graphicsContext.GetVideoResolution());
+  scaleX = (double)r.width() / renderRes.iWidth;
+  scaleY = (double)r.height() / renderRes.iHeight;
+
+  return CRect(srcRect.x1 * scaleX, srcRect.y1 * scaleY, srcRect.x2 * scaleX, srcRect.y2 * scaleY);
 }
 
 void CXBMCApp::OnPlayBackStarted()
@@ -559,7 +606,7 @@ std::vector<androidPackage> CXBMCApp::GetApplications()
     CJNIList<CJNIApplicationInfo> packageList = GetPackageManager().getInstalledApplications(CJNIPackageManager::GET_ACTIVITIES);
     int numPackages = packageList.size();
     for (int i = 0; i < numPackages; i++)
-    {            
+    {
       CJNIIntent intent = GetPackageManager().getLaunchIntentForPackage(packageList.get(i).packageName);
       if (!intent && CJNIBuild::SDK_INT >= 21)
         intent = GetPackageManager().getLeanbackLaunchIntentForPackage(packageList.get(i).packageName);
@@ -601,7 +648,7 @@ bool CXBMCApp::StartActivity(const std::string &package, const std::string &inte
     if (!jniURI)
       return false;
 
-    newIntent.setDataAndType(jniURI, dataType); 
+    newIntent.setDataAndType(jniURI, dataType);
   }
 
   newIntent.setPackage(package);
@@ -728,7 +775,7 @@ float CXBMCApp::GetSystemVolume()
   CJNIAudioManager audioManager(getSystemService("audio"));
   if (audioManager)
     return (float)audioManager.getStreamVolume() / GetMaxSystemVolume();
-  else 
+  else
   {
     android_printf("CXBMCApp::GetSystemVolume: Could not get Audio Manager");
     return 0;
@@ -743,6 +790,11 @@ void CXBMCApp::SetSystemVolume(float percent)
     audioManager.setStreamVolume(maxVolume);
   else
     android_printf("CXBMCApp::SetSystemVolume: Could not get Audio Manager");
+}
+
+void CXBMCApp::InitDirectories()
+{
+  CSpecialProtocol::SetXBMCBinAddonPath(getApplicationInfo().nativeLibraryDir.c_str());
 }
 
 void CXBMCApp::onReceive(CJNIIntent intent)
@@ -845,6 +897,13 @@ void CXBMCApp::doFrame(int64_t frameTimeNanos)
 {
   if (m_syncImpl)
     m_syncImpl->FrameCallback(frameTimeNanos);
+
+  m_vsyncEvent.Set();
+}
+
+bool CXBMCApp::WaitVSync(unsigned int milliSeconds)
+{
+  return m_vsyncEvent.WaitMSec(milliSeconds);
 }
 
 void CXBMCApp::SetupEnv()

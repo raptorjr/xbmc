@@ -26,6 +26,11 @@
 
 class CSetting;
 
+namespace EPG
+{
+  class CGUIEPGGridContainer;
+}
+
 namespace PVR
 {
   class CPVRRefreshTimelineItemsThread;
@@ -44,6 +49,7 @@ namespace PVR
     virtual bool OnContextButton(int itemNumber, CONTEXT_BUTTON button) override;
     virtual void UpdateButtons(void) override;
     virtual void Notify(const Observable &obs, const ObservableMessage msg) override;
+    virtual void SetInvalid() override;
 
     bool RefreshTimelineItems();
 
@@ -51,10 +57,14 @@ namespace PVR
     virtual void UpdateSelectedItemPath() override;
     virtual std::string GetDirectoryPath(void) override { return ""; }
     virtual bool GetDirectory(const std::string &strDirectory, CFileItemList &items) override;
-    virtual void RegisterObservers(void) override;
-    virtual void UnregisterObservers(void) override;
+
+    void ClearData() override;
 
   private:
+    void Init();
+
+    EPG::CGUIEPGGridContainer* GetGridControl();
+
     bool SelectPlayingFile(void);
 
     bool OnContextButtonBegin(CFileItem *item, CONTEXT_BUTTON button);

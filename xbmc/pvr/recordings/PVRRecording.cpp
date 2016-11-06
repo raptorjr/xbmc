@@ -81,7 +81,8 @@ CPVRRecording::CPVRRecording(const PVR_RECORDING &recording, unsigned int iClien
   m_strShowTitle                   = recording.strEpisodeName;
   m_iSeason                        = recording.iSeriesNumber;
   m_iEpisode                       = recording.iEpisodeNumber;
-  SetYear(recording.iYear);
+  if (recording.iYear > 0)
+    SetYear(recording.iYear);
   m_iClientId                      = iClientId;
   m_recordingTime                  = recording.recordingTime + g_advancedSettings.m_iPVRTimeCorrection;
   m_duration                       = CDateTimeSpan(0, 0, recording.iDuration / 60, recording.iDuration % 60);
@@ -181,8 +182,8 @@ void CPVRRecording::Serialize(CVariant& value) const
   value["starttime"] = m_recordingTime.IsValid() ? m_recordingTime.GetAsDBDateTime() : "";
   value["endtime"] = m_recordingTime.IsValid() ? (m_recordingTime + m_duration).GetAsDBDateTime() : "";
   value["recordingid"] = m_iRecordingId;
-  value["deleted"] = m_bIsDeleted;
-  value["epgevent"] = m_iEpgEventId;
+  value["isdeleted"] = m_bIsDeleted;
+  value["epgeventid"] = m_iEpgEventId;
   value["channeluid"] = m_iChannelUid;
   value["radio"] = m_bRadio;
 
@@ -469,4 +470,14 @@ CPVRChannelPtr CPVRRecording::Channel(void) const
     return g_PVRChannelGroups->GetByUniqueID(m_iChannelUid, m_iClientId);
 
   return CPVRChannelPtr();
+}
+
+int CPVRRecording::ChannelUid(void) const
+{
+  return m_iChannelUid;
+}
+
+int CPVRRecording::ClientID(void) const
+{
+  return m_iClientId;
 }

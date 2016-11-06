@@ -547,3 +547,11 @@ msgstr "홈 화면 팬아트 팩을 선택하세요"
 msgctxt "#31132"
 msgid "min"
 msgstr "분"
+
+msgctxt "#31133"
+msgid "Hide"
+msgstr "숨김"
+
+msgctxt "#31134"
+msgid "Remaining"
+msgstr "남음"

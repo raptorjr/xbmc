@@ -70,6 +70,8 @@ public:
   virtual bool CommitTransaction();
   void RollbackTransaction();
   bool InTransaction();
+  void CopyDB(const std::string& latestDb);
+  void DropAnalytics();
 
   std::string PrepareSQL(std::string strStmt, ...) const;
 
@@ -139,12 +141,6 @@ public:
   bool CommitMultipleExecute();
 
   /*!
-   * @brief Open a new dataset.
-   * @return True if the dataset was created successfully, false otherwise.
-   */
-  bool OpenDS();
-
-  /*!
    * @brief Put an INSERT or REPLACE query in the queue.
    * @param strQuery The query to queue.
    * @return True if the query was added successfully, false otherwise.
@@ -161,9 +157,10 @@ public:
   virtual bool BuildSQL(const std::string &strBaseDir, const std::string &strQuery, Filter &filter, std::string &strSQL, CDbUrl &dbUrl);
   virtual bool BuildSQL(const std::string &strBaseDir, const std::string &strQuery, Filter &filter, std::string &strSQL, CDbUrl &dbUrl, SortDescription &sorting);
 
+  bool Connect(const std::string &dbName, const DatabaseSettings &db, bool create);
+
 protected:
   friend class CDatabaseManager;
-  bool Update(const DatabaseSettings &db);
 
   void Split(const std::string& strFileNameAndPath, std::string& strPath, std::string& strFileName);
 
@@ -200,7 +197,6 @@ protected:
   virtual const char *GetBaseDBName() const=0;
 
   int GetDBVersion();
-  bool UpdateVersion(const std::string &dbName);
 
   bool BuildSQL(const std::string &strQuery, const Filter &filter, std::string &strSQL);
 
@@ -212,7 +208,6 @@ protected:
 
 private:
   void InitSettings(DatabaseSettings &dbSettings);
-  bool Connect(const std::string &dbName, const DatabaseSettings &db, bool create);
   void UpdateVersionNumber();
 
   bool m_bMultiWrite; /*!< True if there are any queries in the queue, false otherwise */

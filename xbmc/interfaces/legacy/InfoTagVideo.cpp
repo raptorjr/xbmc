@@ -119,7 +119,7 @@ namespace XBMCAddon
 
     String InfoTagVideo::getIMDBNumber()
     {
-      return infoTag->m_strIMDBNumber;
+      return infoTag->GetUniqueID();
     }
 
     int InfoTagVideo::getSeason()
@@ -170,6 +170,11 @@ namespace XBMCAddon
     String InfoTagVideo::getFirstAired()
     {
       return infoTag->m_firstAired.GetAsLocalizedDate();
+    }
+
+    String InfoTagVideo::getTrailer()
+    {
+      return infoTag->m_strTrailer;
     }
   }
 }

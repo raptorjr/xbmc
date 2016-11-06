@@ -15,15 +15,17 @@ if(CROSSCOMPILING)
   message(STATUS "CROSS: ${ffmpeg_conf}")
 endif()
 
-if(CORE_SYSTEM_NAME STREQUAL linux)
+if(CORE_SYSTEM_NAME STREQUAL linux OR CORE_SYSTEM_NAME STREQUAL freebsd)
   list(APPEND ffmpeg_conf --enable-vdpau --enable-vaapi --enable-pic)
 elseif(CORE_SYSTEM_NAME STREQUAL android)
-  if(CPU MATCHES arm)
+  if(CPU MATCHES arm64)
+    list(APPEND ffmpeg_conf --cpu=cortex-a53 --arch=aarch64)
+  elseif(CPU MATCHES arm)
     list(APPEND ffmpeg_conf --cpu=cortex-a9)
   else()
     list(APPEND ffmpeg_conf --cpu=i686 --disable-mmx)
   endif()
-  list(APPEND ffmpeg_conf --target-os=linux)
+  list(APPEND ffmpeg_conf --target-os=linux --extra-libs=-liconv)
 elseif(CORE_SYSTEM_NAME STREQUAL ios)
   if(NOT CPU MATCHES arm64)
     list(APPEND ffmpeg_conf --cpu=cortex-a8)
@@ -46,12 +48,6 @@ endif()
 find_package(GnuTls)
 if(GNUTLS_FOUND)
   list(APPEND ffmpeg_conf --enable-gnutls)
-endif()
-
-include(ProcessorCount)
-ProcessorCount(N)
-if(NOT N EQUAL 0)
-  set(PARALLEL_FLAGS -j${N})
 endif()
 
 include(ExternalProject)
@@ -81,8 +77,7 @@ externalproject_add(ffmpeg
                       --enable-protocol=http
                       --enable-encoder=png
                       --enable-encoder=mjpeg
-                      ${ffmpeg_conf}
-                    BUILD_COMMAND make ${PARALLEL_FLAGS})
+                      ${ffmpeg_conf})
 
 install(CODE "Message(Done)")
 

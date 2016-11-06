@@ -90,6 +90,7 @@
 #include "pvr/recordings/PVRRecording.h"
 
 #include "addons/AddonManager.h"
+#include "addons/BinaryAddonCache.h"
 #include "interfaces/info/InfoBool.h"
 #include "video/VideoThumbLoader.h"
 #include "music/MusicThumbLoader.h"
@@ -102,8 +103,6 @@
 
 #if defined(TARGET_DARWIN_OSX)
 #include "platform/darwin/osx/smc.h"
-#include "linux/LinuxResourceCounter.h"
-static CLinuxResourceCounter m_resourceCounter;
 #endif
 
 #ifdef TARGET_POSIX
@@ -506,7 +505,10 @@ const infomap player_labels[] =  {{ "hasmedia",         PLAYER_HAS_MEDIA },     
                                   { "isinternetstream", PLAYER_ISINTERNETSTREAM },
                                   { "pauseenabled",     PLAYER_CAN_PAUSE },
                                   { "seekenabled",      PLAYER_CAN_SEEK },
-                                  { "channelpreviewactive", PLAYER_IS_CHANNEL_PREVIEW_ACTIVE}};
+                                  { "channelpreviewactive", PLAYER_IS_CHANNEL_PREVIEW_ACTIVE},
+                                  { "tempoenabled", PLAYER_SUPPORTS_TEMPO},
+                                  { "istempo", PLAYER_IS_TEMPO},
+                                  { "playspeed", PLAYER_PLAYSPEED}};
 
 /// \page modules__General__List_of_gui_access
 /// @{
@@ -618,6 +620,30 @@ const infomap player_param[] =   {{ "art",              PLAYER_ITEM_ART }};
 ///     used (xx) will return AM/PM. Also supported: (hh:mm)\, (mm:ss)\,
 ///     (hh:mm:ss)\, (hh:mm:ss).
 ///   }
+///   \table_row3{   <b>`Player.StartTime`</b>,
+///                  \anchor Player_StartTime
+///                  _string_,
+///     Time playing media began
+///   }
+///   \table_row3{   <b>`Player.StartTime(format)`</b>,
+///                  \anchor Player_StartTime_format
+///                  _string_,
+///     Shows hours (hh)\, minutes (mm) or seconds (ss). When 12 hour clock is
+///     used (xx) will return AM/PM. Also supported: (hh:mm)\, (mm:ss)\,
+///     (hh:mm:ss)\, (hh:mm:ss).
+///   }
+///   \table_row3{   <b>`Player.SeekNumeric`</b>,
+///                  \anchor Player_SeekNumeric
+///                  _string_,
+///     Time to which the user is seeking via numeric keys. 
+///   }
+///   \table_row3{   <b>`Player.SeekNumeric(format)`</b>,
+///                  \anchor Player_SeekNumeric_format
+///                  _string_,
+///     Shows hours (hh)\, minutes (mm) or seconds (ss). When 12 hour clock is used
+///     (xx) will return AM/PM. Also supported: (hh:mm)\, (mm:ss)\, (hh:mm:ss)\,
+///     (hh:mm:ss).
+///   }
 /// \table_end
 ///
 /// -----------------------------------------------------------------------------
@@ -630,7 +656,8 @@ const infomap player_times[] =   {{ "seektime",         PLAYER_SEEKTIME },
                                   { "time",             PLAYER_TIME },
                                   { "duration",         PLAYER_DURATION },
                                   { "finishtime",       PLAYER_FINISH_TIME },
-                                  { "starttime",        PLAYER_START_TIME}};
+                                  { "starttime",        PLAYER_START_TIME },
+                                  { "seeknumeric",      PLAYER_SEEKNUMERIC } };
 
 /// \page modules__General__List_of_gui_access
 /// \section modules__General__List_of_gui_access_Weather Weather
@@ -762,11 +789,22 @@ const infomap weather[] =        {{ "isfetched",        WEATHER_IS_FETCHED },
 ///     Returns true if PVR is supported from Kodi
 ///     \note normally always true
 ///   }
+///   \table_row3{   <b>`System.HasPVRAddon(id)`</b>,
+///                  \anchor System_HasPVRAddon
+///                  _boolean_,
+///     Returns true if at least one pvr client addon is installed and enabled.
+///   }
 ///   \table_row3{   <b>`System.HasADSP`</b>,
 ///                  \anchor System_HasADSP
 ///                  _boolean_,
 ///     Returns true if ADSP is supported from Kodi
 ///     \note normally always true
+///   }
+///   \table_row3{   <b>`System.HasCMS`</b>,
+///                  \anchor System_HasCMS
+///                  _boolean_,
+///     Returns true if colour management is supported from Kodi
+///     \note currently only supported for OpenGL
 ///   }
 ///   \table_row3{   <b>`System.HasModalDialog`</b>,
 ///                  \anchor System_HasModalDialog
@@ -1182,7 +1220,9 @@ const infomap system_labels[] =  {{ "hasnetwork",       SYSTEM_ETHERNET_LINK_ACT
                                   { "haspvr",           SYSTEM_HAS_PVR },
                                   { "startupwindow",    SYSTEM_STARTUP_WINDOW },
                                   { "stereoscopicmode", SYSTEM_STEREOSCOPIC_MODE },
-                                  { "hasadsp",          SYSTEM_HAS_ADSP }};
+                                  { "hasadsp",          SYSTEM_HAS_ADSP },
+                                  { "hascms",           SYSTEM_HAS_CMS },
+                                  { "haspvraddon",      SYSTEM_HAS_PVR_ADDON }};
 
 /// \page modules__General__List_of_gui_access
 /// @{
@@ -1674,7 +1714,8 @@ const infomap musicplayer[] =    {{ "title",            MUSICPLAYER_TITLE },
                                   { "channelnumber",    MUSICPLAYER_CHANNEL_NUMBER },
                                   { "subchannelnumber", MUSICPLAYER_SUB_CHANNEL_NUMBER },
                                   { "channelnumberlabel", MUSICPLAYER_CHANNEL_NUMBER_LBL },
-                                  { "channelgroup",     MUSICPLAYER_CHANNEL_GROUP }
+                                  { "channelgroup",     MUSICPLAYER_CHANNEL_GROUP },
+                                  { "dbid", MUSICPLAYER_DBID }
 };
 
 /// \page modules__General__List_of_gui_access
@@ -2105,7 +2146,24 @@ const infomap videoplayer[] =    {{ "title",            VIDEOPLAYER_TITLE },
                                   { "stereoscopicmode", VIDEOPLAYER_STEREOSCOPIC_MODE },
                                   { "canresumelivetv",  VIDEOPLAYER_CAN_RESUME_LIVE_TV },
                                   { "imdbnumber",       VIDEOPLAYER_IMDBNUMBER },
-                                  { "episodename",      VIDEOPLAYER_EPISODENAME }
+                                  { "episodename",      VIDEOPLAYER_EPISODENAME },
+                                  { "dbid", VIDEOPLAYER_DBID }
+};
+
+const infomap player_process[] =
+{
+  { "videodecoder", PLAYER_PROCESS_VIDEODECODER },
+  { "deintmethod", PLAYER_PROCESS_DEINTMETHOD },
+  { "pixformat", PLAYER_PROCESS_PIXELFORMAT },
+  { "videowidth", PLAYER_PROCESS_VIDEOWIDTH },
+  { "videoheight", PLAYER_PROCESS_VIDEOHEIGHT },
+  { "videofps", PLAYER_PROCESS_VIDEOFPS },
+  { "videodar", PLAYER_PROCESS_VIDEODAR },
+  { "videohwdecoder", PLAYER_PROCESS_VIDEOHWDECODER },
+  { "audiodecoder", PLAYER_PROCESS_AUDIODECODER },
+  { "audiochannels", PLAYER_PROCESS_AUDIOCHANNELS },
+  { "audiosamplerate", PLAYER_PROCESS_AUDIOSAMPLERATE },
+  { "audiobitspersample", PLAYER_PROCESS_AUDIOBITSPERSAMPLE }
 };
 
 /// \page modules__General__List_of_gui_access
@@ -3530,7 +3588,7 @@ const infomap container_str[]  = {{ "property",         CONTAINER_PROPERTY },
 ///   \table_row3{   <b>`ListItem.HasTimerSchedule`</b>,
 ///                  \anchor ListItem_HasTimerSchedule
 ///                  _boolean_,
-///     Whether the item is part of a repeating timer schedule (PVR). (v16 addition)
+///     Whether the item was scheduled by a timer rule (PVR). (v16 addition)
 ///   }
 ///   \table_row3{   <b>`ListItem.HasRecording`</b>,
 ///                  \anchor ListItem_HasRecording
@@ -3795,6 +3853,7 @@ const infomap listitem_labels[]= {{ "thumb",            LISTITEM_THUMB },
                                   { "dateadded",        LISTITEM_DATE_ADDED },
                                   { "dbtype",           LISTITEM_DBTYPE },
                                   { "dbid",             LISTITEM_DBID },
+                                  { "appearances",      LISTITEM_APPEARANCES },
                                   { "stereoscopicmode", LISTITEM_STEREOSCOPIC_MODE },
                                   { "isstereoscopic",   LISTITEM_IS_STEREOSCOPIC },
                                   { "imdbnumber",       LISTITEM_IMDBNUMBER },
@@ -4086,7 +4145,7 @@ const infomap playlist[] =       {{ "length",           PLAYLIST_LENGTH },
 ///   \table_row3{   <b>`Pvr.IsRecording`</b>,
 ///                  \anchor Pvr_IsRecording
 ///                  _boolean_,
-///     Returns true when the system is recording a tv programme.
+///     Returns true when the system is recording a tv or radio programme.
 ///   }
 ///   \table_row3{   <b>`Pvr.HasTimer`</b>,
 ///                  \anchor Pvr_HasTimer
@@ -4121,7 +4180,7 @@ const infomap playlist[] =       {{ "length",           PLAYLIST_LENGTH },
 ///   \table_row3{   <b>`Pvr.NowRecordingChannel`</b>,
 ///                  \anchor Pvr_NowRecordingChannel
 ///                  _string_,
-///     Channel number that's being recorded
+///     Channel name of the current recording
 ///   }
 ///   \table_row3{   <b>`Pvr.NowRecordingChannelIcon`</b>,
 ///                  \anchor Pvr_NowRecordingChannelIcon
@@ -4343,6 +4402,116 @@ const infomap playlist[] =       {{ "length",           PLAYLIST_LENGTH },
 ///                  _integer_,
 ///     Returns the position of currently timeshifted title on TV as interger
 ///   }
+///   \table_row3{   <b>`Pvr.TVNowRecordingTitle`</b>,
+///                  \anchor Pvr_TVNowRecordingTitle
+///                  _string_,
+///     Title of the tv programme being recorded
+///   }
+///   \table_row3{   <b>`Pvr.TVNowRecordingDateTime`</b>,
+///                  \anchor Pvr_TVNowRecordingDateTime
+///                  _Date/Time string_,
+///     Start date and time of the current tv recording
+///   }
+///   \table_row3{   <b>`Pvr.TVNowRecordingChannel`</b>,
+///                  \anchor Pvr_TVNowRecordingChannel
+///                  _string_,
+///     Channel name of the current tv recording
+///   }
+///   \table_row3{   <b>`Pvr.TVNowRecordingChannelIcon`</b>,
+///                  \anchor Pvr_TVNowRecordingChannelIcon
+///                  _path_,
+///     Icon of the current recording TV channel
+///   }
+///   \table_row3{   <b>`Pvr.TVNextRecordingTitle`</b>,
+///                  \anchor Pvr_TVNextRecordingTitle
+///                  _string_,
+///     Title of the next tv programme that will be recorded
+///   }
+///   \table_row3{   <b>`Pvr.TVNextRecordingDateTime`</b>,
+///                  \anchor Pvr_TVNextRecordingDateTime
+///                  _Date/Time string_,
+///     Start date and time of the next tv recording
+///   }
+///   \table_row3{   <b>`Pvr.TVNextRecordingChannel`</b>,
+///                  \anchor Pvr_TVNextRecordingChannel
+///                  _string_,
+///     Channel name of the next tv recording
+///   }
+///   \table_row3{   <b>`Pvr.TVNextRecordingChannelIcon`</b>,
+///                  \anchor Pvr_TVNextRecordingChannelIcon
+///                  _path_,
+///     Icon of the next recording tv channel
+///   }
+///   \table_row3{   <b>`Pvr.RadioNowRecordingTitle`</b>,
+///                  \anchor Pvr_RadioNowRecordingTitle
+///                  _string_,
+///     Title of the radio programme being recorded
+///   }
+///   \table_row3{   <b>`Pvr.RadioNowRecordingDateTime`</b>,
+///                  \anchor Pvr_RadioNowRecordingDateTime
+///                  _Date/Time string_,
+///     Start date and time of the current radio recording
+///   }
+///   \table_row3{   <b>`Pvr.RadioNowRecordingChannel`</b>,
+///                  \anchor Pvr_RadioNowRecordingChannel
+///                  _string_,
+///     Channel name of the current radio recording
+///   }
+///   \table_row3{   <b>`Pvr.RadioNowRecordingChannelIcon`</b>,
+///                  \anchor Pvr_RadioNowRecordingChannelIcon
+///                  _path_,
+///     Icon of the current recording radio channel
+///   }
+///   \table_row3{   <b>`Pvr.RadioNextRecordingTitle`</b>,
+///                  \anchor Pvr_RadioNextRecordingTitle
+///                  _string_,
+///     Title of the next radio programme that will be recorded
+///   }
+///   \table_row3{   <b>`Pvr.RadioNextRecordingDateTime`</b>,
+///                  \anchor Pvr_RadioNextRecordingDateTime
+///                  _Date/Time string_,
+///     Start date and time of the next radio recording
+///   }
+///   \table_row3{   <b>`Pvr.RadioNextRecordingChannel`</b>,
+///                  \anchor Pvr_RadioNextRecordingChannel
+///                  _string_,
+///     Channel name of the next radio recording
+///   }
+///   \table_row3{   <b>`Pvr.RadioNextRecordingChannelIcon`</b>,
+///                  \anchor Pvr_RadioNextRecordingChannelIcon
+///                  _path_,
+///     Icon of the next recording radio channel
+///   }
+///   \table_row3{   <b>`Pvr.IsRecordingTV`</b>,
+///                  \anchor Pvr_IsRecordingTV
+///                  _boolean_,
+///     Returns true when the system is recording a tv programme.
+///   }
+///   \table_row3{   <b>`Pvr.HasTVTimer`</b>,
+///                  \anchor Pvr_HasTVTimer
+///                  _boolean_,
+///     Returns true if at least one tv timer is active.
+///   }
+///   \table_row3{   <b>`Pvr.HasNonRecordingTVTimer`</b>,
+///                  \anchor Pvr_HasNonRecordingTVTimer
+///                  _boolean_,
+///     Returns true if there are tv timers present who currently not do recording
+///   }
+///   \table_row3{   <b>`Pvr.IsRecordingRadio`</b>,
+///                  \anchor Pvr_IsRecordingRadio
+///                  _boolean_,
+///     Returns true when the system is recording a radio programme.
+///   }
+///   \table_row3{   <b>`Pvr.HasRadioTimer`</b>,
+///                  \anchor Pvr_HasRadioTimer
+///                  _boolean_,
+///     Returns true if at least one radio timer is active.
+///   }
+///   \table_row3{   <b>`Pvr.HasNonRecordingRadioTimer`</b>,
+///                  \anchor Pvr_HasNonRecordingRadioTimer
+///                  _boolean_,
+///     Returns true if there are radio timers present who currently not do recording
+///   }
 /// \table_end
 ///
 /// -----------------------------------------------------------------------------
@@ -4398,7 +4567,37 @@ const infomap pvr[] =            {{ "isrecording",              PVR_IS_RECORDING
                                   { "timeshiftstart",           PVR_TIMESHIFT_START_TIME },
                                   { "timeshiftend",             PVR_TIMESHIFT_END_TIME },
                                   { "timeshiftcur",             PVR_TIMESHIFT_PLAY_TIME },
-                                  { "timeshiftprogress",        PVR_TIMESHIFT_PROGRESS }};
+                                  { "timeshiftprogress",        PVR_TIMESHIFT_PROGRESS },
+                                  { "nowrecordingtitle",        PVR_NOW_RECORDING_TITLE },
+                                  { "nowrecordingdatetime",     PVR_NOW_RECORDING_DATETIME },
+                                  { "nowrecordingchannel",      PVR_NOW_RECORDING_CHANNEL },
+                                  { "nowrecordingchannelicon",  PVR_NOW_RECORDING_CHAN_ICO },
+                                  { "nextrecordingtitle",       PVR_NEXT_RECORDING_TITLE },
+                                  { "nextrecordingdatetime",    PVR_NEXT_RECORDING_DATETIME },
+                                  { "nextrecordingchannel",     PVR_NEXT_RECORDING_CHANNEL },
+                                  { "nextrecordingchannelicon", PVR_NEXT_RECORDING_CHAN_ICO },
+                                  { "tvnowrecordingtitle",            PVR_TV_NOW_RECORDING_TITLE },
+                                  { "tvnowrecordingdatetime",         PVR_TV_NOW_RECORDING_DATETIME },
+                                  { "tvnowrecordingchannel",          PVR_TV_NOW_RECORDING_CHANNEL },
+                                  { "tvnowrecordingchannelicon",      PVR_TV_NOW_RECORDING_CHAN_ICO },
+                                  { "tvnextrecordingtitle",           PVR_TV_NEXT_RECORDING_TITLE },
+                                  { "tvnextrecordingdatetime",        PVR_TV_NEXT_RECORDING_DATETIME },
+                                  { "tvnextrecordingchannel",         PVR_TV_NEXT_RECORDING_CHANNEL },
+                                  { "tvnextrecordingchannelicon",     PVR_TV_NEXT_RECORDING_CHAN_ICO },
+                                  { "radionowrecordingtitle",         PVR_RADIO_NOW_RECORDING_TITLE },
+                                  { "radionowrecordingdatetime",      PVR_RADIO_NOW_RECORDING_DATETIME },
+                                  { "radionowrecordingchannel",       PVR_RADIO_NOW_RECORDING_CHANNEL },
+                                  { "radionowrecordingchannelicon",   PVR_RADIO_NOW_RECORDING_CHAN_ICO },
+                                  { "radionextrecordingtitle",        PVR_RADIO_NEXT_RECORDING_TITLE },
+                                  { "radionextrecordingdatetime",     PVR_RADIO_NEXT_RECORDING_DATETIME },
+                                  { "radionextrecordingchannel",      PVR_RADIO_NEXT_RECORDING_CHANNEL },
+                                  { "radionextrecordingchannelicon",  PVR_RADIO_NEXT_RECORDING_CHAN_ICO },
+                                  { "isrecordingtv",              PVR_IS_RECORDING_TV },
+                                  { "hastvtimer",                 PVR_HAS_TV_TIMER },
+                                  { "hasnonrecordingtvtimer",     PVR_HAS_NONRECORDING_TV_TIMER },
+                                  { "isrecordingradio",           PVR_IS_RECORDING_RADIO },
+                                  { "hasradiotimer",              PVR_HAS_RADIO_TIMER },
+                                  { "hasnonrecordingradiotimer",  PVR_HAS_NONRECORDING_RADIO_TIMER }};
 
 /// \page modules__General__List_of_gui_access
 /// \section modules__General__List_of_gui_access_ADSP ADSP
@@ -5143,6 +5342,14 @@ int CGUIInfoManager::TranslateSingleString(const std::string &strCondition, bool
         if (prop.name == player_times[i].str)
           return AddMultiInfo(GUIInfo(player_times[i].val, TranslateTimeFormat(prop.param())));
       }
+      if (prop.name == "process" && prop.num_params())
+      {
+        for (size_t i = 0; i < sizeof(player_process) / sizeof(infomap); i++)
+        {
+          if (StringUtils::EqualsNoCase(prop.param(), player_process[i].str))
+            return player_process[i].val;
+        }
+      }
       if (prop.num_params() == 1)
       {
         for (size_t i = 0; i < sizeof(player_param) / sizeof(infomap); i++)
@@ -5313,7 +5520,9 @@ int CGUIInfoManager::TranslateSingleString(const std::string &strCondition, bool
           return AddMultiInfo(GUIInfo(player_times[i].val, TranslateTimeFormat(prop.param())));
       }
       if (prop.name == "content" && prop.num_params())
+      {
         return AddMultiInfo(GUIInfo(VIDEOPLAYER_CONTENT, ConditionalStringParameter(prop.param()), 0));
+      }
       for (size_t i = 0; i < sizeof(videoplayer) / sizeof(infomap); i++)
       {
         if (prop.name == videoplayer[i].str)
@@ -5728,6 +5937,22 @@ std::string CGUIInfoManager::GetLabel(int info, int contextWindow, std::string *
   case PVR_TIMESHIFT_START_TIME:
   case PVR_TIMESHIFT_END_TIME:
   case PVR_TIMESHIFT_PLAY_TIME:
+  case PVR_TV_NOW_RECORDING_TITLE:
+  case PVR_TV_NOW_RECORDING_CHANNEL:
+  case PVR_TV_NOW_RECORDING_CHAN_ICO:
+  case PVR_TV_NOW_RECORDING_DATETIME:
+  case PVR_TV_NEXT_RECORDING_TITLE:
+  case PVR_TV_NEXT_RECORDING_CHANNEL:
+  case PVR_TV_NEXT_RECORDING_CHAN_ICO:
+  case PVR_TV_NEXT_RECORDING_DATETIME:
+  case PVR_RADIO_NOW_RECORDING_TITLE:
+  case PVR_RADIO_NOW_RECORDING_CHANNEL:
+  case PVR_RADIO_NOW_RECORDING_CHAN_ICO:
+  case PVR_RADIO_NOW_RECORDING_DATETIME:
+  case PVR_RADIO_NEXT_RECORDING_TITLE:
+  case PVR_RADIO_NEXT_RECORDING_CHANNEL:
+  case PVR_RADIO_NEXT_RECORDING_CHAN_ICO:
+  case PVR_RADIO_NEXT_RECORDING_DATETIME:
     g_PVRManager.TranslateCharInfo(info, strLabel);
     break;
   case ADSP_ACTIVE_STREAM_TYPE:
@@ -5863,6 +6088,10 @@ std::string CGUIInfoManager::GetLabel(int info, int contextWindow, std::string *
       }
     }
     break;
+  case PLAYER_PLAYSPEED:
+      if(g_application.m_pPlayer->IsPlaying())
+        strLabel = StringUtils::Format("%.2f", g_application.m_pPlayer->GetPlaySpeed());
+      break;
   case MUSICPLAYER_TITLE:
   case MUSICPLAYER_ALBUM:
   case MUSICPLAYER_ARTIST:
@@ -5892,6 +6121,7 @@ std::string CGUIInfoManager::GetLabel(int info, int contextWindow, std::string *
   case MUSICPLAYER_CHANNEL_GROUP:
   case MUSICPLAYER_PLAYCOUNT:
   case MUSICPLAYER_LASTPLAYED:
+  case MUSICPLAYER_DBID:
     strLabel = GetMusicLabel(info);
   break;
   case VIDEOPLAYER_TITLE:
@@ -5939,6 +6169,7 @@ std::string CGUIInfoManager::GetLabel(int info, int contextWindow, std::string *
   case VIDEOPLAYER_PLAYCOUNT:
   case VIDEOPLAYER_LASTPLAYED:
   case VIDEOPLAYER_IMDBNUMBER:
+  case VIDEOPLAYER_DBID:
   case VIDEOPLAYER_EPISODENAME:
     strLabel = GetVideoLabel(info);
   break;
@@ -5993,6 +6224,39 @@ std::string CGUIInfoManager::GetLabel(int info, int contextWindow, std::string *
       strLabel = info.language;
     }
     break;
+  case PLAYER_PROCESS_VIDEODECODER:
+      strLabel = CServiceBroker::GetDataCacheCore().GetVideoDecoderName();
+      break;
+  case PLAYER_PROCESS_DEINTMETHOD:
+      strLabel = CServiceBroker::GetDataCacheCore().GetVideoDeintMethod();
+      break;
+  case PLAYER_PROCESS_PIXELFORMAT:
+      strLabel = CServiceBroker::GetDataCacheCore().GetVideoPixelFormat();
+      break;
+  case PLAYER_PROCESS_VIDEOFPS:
+      strLabel = StringUtils::Format("%.3f", CServiceBroker::GetDataCacheCore().GetVideoFps());
+      break;
+  case PLAYER_PROCESS_VIDEODAR:
+      strLabel = StringUtils::Format("%.2f", CServiceBroker::GetDataCacheCore().GetVideoDAR());
+      break;
+  case PLAYER_PROCESS_VIDEOWIDTH:
+      strLabel = StringUtils::FormatNumber(CServiceBroker::GetDataCacheCore().GetVideoWidth());
+      break;
+  case PLAYER_PROCESS_VIDEOHEIGHT:
+      strLabel = StringUtils::FormatNumber(CServiceBroker::GetDataCacheCore().GetVideoHeight());
+      break;
+  case PLAYER_PROCESS_AUDIODECODER:
+      strLabel = CServiceBroker::GetDataCacheCore().GetAudioDecoderName();
+      break;
+  case PLAYER_PROCESS_AUDIOCHANNELS:
+      strLabel = CServiceBroker::GetDataCacheCore().GetAudioChannels();
+      break;
+  case PLAYER_PROCESS_AUDIOSAMPLERATE:
+      strLabel = StringUtils::FormatNumber(CServiceBroker::GetDataCacheCore().GetAudioSampleRate());
+      break;
+  case PLAYER_PROCESS_AUDIOBITSPERSAMPLE:
+      strLabel = StringUtils::FormatNumber(CServiceBroker::GetDataCacheCore().GetAudioBitsPerSample());
+      break;
   case RDS_AUDIO_LANG:
   case RDS_CHANNEL_COUNTRY:
   case RDS_TITLE:
@@ -6727,8 +6991,21 @@ bool CGUIInfoManager::GetBool(int condition1, int contextWindow, const CGUIListI
     bReturn = CProfilesManager::GetInstance().GetMasterProfile().getLockMode() != LOCK_MODE_EVERYONE;
   else if (condition == SYSTEM_HAS_PVR)
     bReturn = true;
+  else if (condition == SYSTEM_HAS_PVR_ADDON)
+  {
+    VECADDONS pvrAddons;
+    CBinaryAddonCache &addonCache = CServiceBroker::GetBinaryAddonCache();
+    addonCache.GetAddons(pvrAddons, ADDON::ADDON_PVRDLL);
+    bReturn = (pvrAddons.size() > 0);
+  }
   else if (condition == SYSTEM_HAS_ADSP)
     bReturn = true;
+  else if (condition == SYSTEM_HAS_CMS)
+#ifdef HAS_GL
+    bReturn = true;
+#else
+    bReturn = false;
+#endif
   else if (condition == SYSTEM_ISMASTER)
     bReturn = CProfilesManager::GetInstance().GetMasterProfile().getLockMode() != LOCK_MODE_EVERYONE && g_passwordManager.bMasterUser;
   else if (condition == SYSTEM_ISFULLSCREEN)
@@ -6891,46 +7168,49 @@ bool CGUIInfoManager::GetBool(int condition1, int contextWindow, const CGUIListI
       bReturn = g_application.m_pPlayer->IsPlayingVideo();
       break;
     case PLAYER_PLAYING:
-      bReturn = !g_application.m_pPlayer->IsPausedPlayback() && (g_application.m_pPlayer->GetPlaySpeed() == 1);
+      {
+        float speed = g_application.m_pPlayer->GetPlaySpeed();
+        bReturn = (speed >= 0.75 && speed <= 1.55);
+      }
       break;
     case PLAYER_PAUSED:
       bReturn = g_application.m_pPlayer->IsPausedPlayback();
       break;
     case PLAYER_REWINDING:
-      bReturn = !g_application.m_pPlayer->IsPausedPlayback() && g_application.m_pPlayer->GetPlaySpeed() < 1;
+      bReturn = g_application.m_pPlayer->GetPlaySpeed() < 0;
       break;
     case PLAYER_FORWARDING:
-      bReturn = !g_application.m_pPlayer->IsPausedPlayback() && g_application.m_pPlayer->GetPlaySpeed() > 1;
+      bReturn = g_application.m_pPlayer->GetPlaySpeed() > 1.5;
       break;
     case PLAYER_REWINDING_2x:
-      bReturn = !g_application.m_pPlayer->IsPausedPlayback() && g_application.m_pPlayer->GetPlaySpeed() == -2;
+      bReturn = g_application.m_pPlayer->GetPlaySpeed() == -2;
       break;
     case PLAYER_REWINDING_4x:
-      bReturn = !g_application.m_pPlayer->IsPausedPlayback() && g_application.m_pPlayer->GetPlaySpeed() == -4;
+      bReturn = g_application.m_pPlayer->GetPlaySpeed() == -4;
       break;
     case PLAYER_REWINDING_8x:
-      bReturn = !g_application.m_pPlayer->IsPausedPlayback() && g_application.m_pPlayer->GetPlaySpeed() == -8;
+      bReturn = g_application.m_pPlayer->GetPlaySpeed() == -8;
       break;
     case PLAYER_REWINDING_16x:
-      bReturn = !g_application.m_pPlayer->IsPausedPlayback() && g_application.m_pPlayer->GetPlaySpeed() == -16;
+      bReturn = g_application.m_pPlayer->GetPlaySpeed() == -16;
       break;
     case PLAYER_REWINDING_32x:
-      bReturn = !g_application.m_pPlayer->IsPausedPlayback() && g_application.m_pPlayer->GetPlaySpeed() == -32;
+      bReturn = g_application.m_pPlayer->GetPlaySpeed() == -32;
       break;
     case PLAYER_FORWARDING_2x:
-      bReturn = !g_application.m_pPlayer->IsPausedPlayback() && g_application.m_pPlayer->GetPlaySpeed() == 2;
+      bReturn = g_application.m_pPlayer->GetPlaySpeed() == 2;
       break;
     case PLAYER_FORWARDING_4x:
-      bReturn = !g_application.m_pPlayer->IsPausedPlayback() && g_application.m_pPlayer->GetPlaySpeed() == 4;
+      bReturn = g_application.m_pPlayer->GetPlaySpeed() == 4;
       break;
     case PLAYER_FORWARDING_8x:
-      bReturn = !g_application.m_pPlayer->IsPausedPlayback() && g_application.m_pPlayer->GetPlaySpeed() == 8;
+      bReturn = g_application.m_pPlayer->GetPlaySpeed() == 8;
       break;
     case PLAYER_FORWARDING_16x:
-      bReturn = !g_application.m_pPlayer->IsPausedPlayback() && g_application.m_pPlayer->GetPlaySpeed() == 16;
+      bReturn = g_application.m_pPlayer->GetPlaySpeed() == 16;
       break;
     case PLAYER_FORWARDING_32x:
-      bReturn = !g_application.m_pPlayer->IsPausedPlayback() && g_application.m_pPlayer->GetPlaySpeed() == 32;
+      bReturn = g_application.m_pPlayer->GetPlaySpeed() == 32;
       break;
     case PLAYER_CAN_RECORD:
       bReturn = g_application.m_pPlayer->CanRecord();
@@ -6940,6 +7220,15 @@ bool CGUIInfoManager::GetBool(int condition1, int contextWindow, const CGUIListI
       break;
     case PLAYER_CAN_SEEK:
       bReturn = g_application.m_pPlayer->CanSeek();
+      break;
+    case PLAYER_SUPPORTS_TEMPO:
+      bReturn = g_application.m_pPlayer->SupportsTempo();
+      break;
+    case PLAYER_IS_TEMPO:
+      {
+        float speed = g_application.m_pPlayer->GetPlaySpeed();
+        bReturn = (speed >= 0.75 && speed <= 1.55 && speed != 1);
+      }
       break;
     case PLAYER_RECORDING:
       bReturn = g_application.m_pPlayer->IsRecording();
@@ -7090,6 +7379,9 @@ bool CGUIInfoManager::GetBool(int condition1, int contextWindow, const CGUIListI
                    !m_currentFile->GetPVRRadioRDSInfoTag()->GetSMSStudio().empty() ||
                    !m_currentFile->GetPVRRadioRDSInfoTag()->GetPhoneStudio().empty());
     break;
+    case PLAYER_PROCESS_VIDEOHWDECODER:
+        bReturn = CServiceBroker::GetDataCacheCore().IsVideoHwDecoder();
+        break;
     default: // default, use integer value different from 0 as true
       {
         int val;
@@ -7702,8 +7994,9 @@ std::string CGUIInfoManager::GetMultiInfoLabel(const GUIInfo &info, int contextW
   else if (info.m_info == PLAYER_TIME_SPEED)
   {
     std::string strTime;
-    if (g_application.m_pPlayer->GetPlaySpeed() != 1)
-      strTime = StringUtils::Format("%s (%ix)", GetCurrentPlayTime((TIME_FORMAT)info.GetData1()).c_str(), g_application.m_pPlayer->GetPlaySpeed());
+    float speed = g_application.m_pPlayer->GetPlaySpeed();
+    if (speed < 0.8 || speed > 1.5)
+      strTime = StringUtils::Format("%s (%ix)", GetCurrentPlayTime((TIME_FORMAT)info.GetData1()).c_str(), (int)speed);
     else
       strTime = GetCurrentPlayTime();
     return strTime;
@@ -7732,6 +8025,16 @@ std::string CGUIInfoManager::GetMultiInfoLabel(const GUIInfo &info, int contextW
       return "-" + strSeekSize;
     if (seekSize > 0)
       return "+" + strSeekSize;
+  }
+  else if (info.m_info == PLAYER_SEEKNUMERIC)
+  {
+    if (!CSeekHandler::GetInstance().HasTimeCode())
+      return "";
+    int seekTimeCode = CSeekHandler::GetInstance().GetTimeCodeSeconds();
+    TIME_FORMAT format = (TIME_FORMAT)info.GetData1();
+    if (format == TIME_FORMAT_GUESS && seekTimeCode >= 3600)
+      format = TIME_FORMAT_HH_MM_SS;
+    return StringUtils::SecondsToTimeString(seekTimeCode, format);
   }
   else if (info.m_info == PLAYER_ITEM_ART)
   {
@@ -8459,6 +8762,10 @@ std::string CGUIInfoManager::GetMusicTagLabel(int info, const CFileItem *item)
     return GetItemLabel(item, LISTITEM_PLAYCOUNT);
   case MUSICPLAYER_LASTPLAYED:
     return GetItemLabel(item, LISTITEM_LASTPLAYED);
+  case MUSICPLAYER_DBID:
+    if (m_currentFile->GetMusicInfoTag()->GetDatabaseId() > -1)
+      return StringUtils::Format("%i", m_currentFile->GetMusicInfoTag()->GetDatabaseId());
+    break;
   }
   return "";
 }
@@ -8554,10 +8861,10 @@ std::string CGUIInfoManager::GetVideoLabel(int item)
       return epgTag ? epgTag->PlotOutline() : "";
     case VIDEOPLAYER_NEXT_STARTTIME:
       epgTag = tag->GetEPGNext();
-      return epgTag ? epgTag->StartAsLocalTime().GetAsLocalizedTime("", false) : CDateTime::GetCurrentDateTime().GetAsLocalizedTime("", false);
+      return epgTag ? epgTag->StartAsLocalTime().GetAsLocalizedTime("", false) : "";
     case VIDEOPLAYER_NEXT_ENDTIME:
       epgTag = tag->GetEPGNext();
-      return epgTag ? epgTag->EndAsLocalTime().GetAsLocalizedTime("", false) : CDateTime::GetCurrentDateTime().GetAsLocalizedTime("", false);
+      return epgTag ? epgTag->EndAsLocalTime().GetAsLocalizedTime("", false) : "";
     case VIDEOPLAYER_NEXT_DURATION:
       {
         std::string duration;
@@ -8599,10 +8906,91 @@ std::string CGUIInfoManager::GetVideoLabel(int item)
   }
   else if (m_currentFile->HasPVRRecordingInfoTag())
   {
+    const CPVRRecordingPtr tag(m_currentFile->GetPVRRecordingInfoTag());
+
     switch (item)
     {
-    case VIDEOPLAYER_PLOT:
-      return m_currentFile->GetPVRRecordingInfoTag()->m_strPlot;
+      case VIDEOPLAYER_TITLE:
+        return tag->m_strTitle;
+
+      case VIDEOPLAYER_GENRE:
+        return StringUtils::Join(tag->m_genre, g_advancedSettings.m_videoItemSeparator);
+
+      case VIDEOPLAYER_PLOT:
+        return tag->m_strPlot;
+
+      case VIDEOPLAYER_PLOT_OUTLINE:
+        return tag->m_strPlotOutline;
+
+      case VIDEOPLAYER_STARTTIME:
+        return tag->RecordingTimeAsLocalTime().GetAsLocalizedTime("", false);
+
+      case VIDEOPLAYER_ENDTIME:
+        return (tag->RecordingTimeAsLocalTime() + tag->m_duration).GetAsLocalizedTime("", false);
+
+      case VIDEOPLAYER_YEAR:
+        if (tag->HasYear())
+          return StringUtils::Format("%i", tag->GetYear());
+        break;
+
+      case VIDEOPLAYER_EPISODE:
+        if (tag->m_iEpisode > 0)
+        {
+          if (tag->m_iEpisode == 0) // prefix episode with 'S'
+            return StringUtils::Format("S%i", tag->m_iEpisode);
+          else
+            return StringUtils::Format("%i", tag->m_iEpisode);
+        }
+        break;
+
+      case VIDEOPLAYER_SEASON:
+        if (tag->m_iSeason > 0)
+          return StringUtils::Format("%i", tag->m_iSeason);
+        break;
+
+      case VIDEOPLAYER_EPISODENAME:
+        return tag->EpisodeName();
+
+      case VIDEOPLAYER_CHANNEL_NAME:
+        return tag->m_strChannelName;
+
+      case VIDEOPLAYER_CHANNEL_NUMBER:
+      {
+        const CPVRChannelPtr channel(tag->Channel());
+        if (channel)
+          return StringUtils::Format("%i", channel->ChannelNumber());
+        break;
+      }
+
+      case VIDEOPLAYER_SUB_CHANNEL_NUMBER:
+      {
+        const CPVRChannelPtr channel(tag->Channel());
+        if (channel)
+          return StringUtils::Format("%i", channel->SubChannelNumber());
+        break;
+      }
+
+      case VIDEOPLAYER_CHANNEL_NUMBER_LBL:
+      {
+        const CPVRChannelPtr channel(tag->Channel());
+        if (channel)
+          return channel->FormattedChannelNumber();
+        break;
+      }
+
+      case VIDEOPLAYER_CHANNEL_GROUP:
+      {
+        if (!tag->IsRadio())
+          return g_PVRManager.GetPlayingTVGroupName();
+        break;
+      }
+
+      case VIDEOPLAYER_PLAYCOUNT:
+      {
+        if (tag->m_playCount > 0)
+          return StringUtils::Format("%i", tag->m_playCount);
+        break;
+      }
     }
   }
   else if (m_currentFile->HasVideoInfoTag())
@@ -8619,7 +9007,11 @@ std::string CGUIInfoManager::GetVideoLabel(int item)
       return StringUtils::Join(m_currentFile->GetVideoInfoTag()->m_director, g_advancedSettings.m_videoItemSeparator);
       break;
     case VIDEOPLAYER_IMDBNUMBER:
-      return m_currentFile->GetVideoInfoTag()->m_strIMDBNumber;
+      return m_currentFile->GetVideoInfoTag()->GetUniqueID();
+    case VIDEOPLAYER_DBID:
+      if (m_currentFile->GetVideoInfoTag()->m_iDbId > -1)
+        return StringUtils::Format("%i", m_currentFile->GetVideoInfoTag()->m_iDbId);
+      break;
     case VIDEOPLAYER_RATING:
       {
         std::string strRating;
@@ -8987,9 +9379,7 @@ std::string CGUIInfoManager::GetSystemHeatInfo(int info)
       text = StringUtils::Format("%i%%", m_fanSpeed * 2);
       break;
     case SYSTEM_CPU_USAGE:
-#if defined(TARGET_DARWIN_OSX)
-      text = StringUtils::Format("%4.2f%%", m_resourceCounter.GetCPUUsage());
-#elif defined(TARGET_DARWIN) || defined(TARGET_WINDOWS)
+#if defined(TARGET_DARWIN) || defined(TARGET_WINDOWS)
       text = StringUtils::Format("%d%%", g_cpuInfo.getUsedPercentage());
 #else
       text = StringUtils::Format("%s", g_cpuInfo.GetCoresUsageString().c_str());
@@ -9050,6 +9440,20 @@ bool CGUIInfoManager::GetDisplayAfterSeek()
   return false;
 }
 
+void CGUIInfoManager::SetShowInfo(bool showinfo)
+{
+  m_playerShowInfo = showinfo;
+
+  if (!showinfo)
+    m_isPvrChannelPreview = false;
+}
+
+bool CGUIInfoManager::ToggleShowInfo()
+{
+  SetShowInfo(!m_playerShowInfo);
+  return m_playerShowInfo;
+}
+
 void CGUIInfoManager::Clear()
 {
   CSingleLock lock(m_critInfo);
@@ -9090,7 +9494,7 @@ void CGUIInfoManager::UpdateAVInfo()
 {
   if(g_application.m_pPlayer->IsPlaying())
   {
-    if (g_dataCacheCore.HasAVInfoChanges())
+    if (CServiceBroker::GetDataCacheCore().HasAVInfoChanges())
     {
       SPlayerVideoStreamInfo video;
       SPlayerAudioStreamInfo audio;
@@ -9100,6 +9504,8 @@ void CGUIInfoManager::UpdateAVInfo()
 
       m_videoInfo = video;
       m_audioInfo = audio;
+
+      m_isPvrChannelPreview = g_PVRManager.IsChannelPreview();
     }
   }
 }
@@ -9909,7 +10315,8 @@ std::string CGUIInfoManager::GetItemLabel(const CFileItem *item, int info, std::
     if (item->HasPVRChannelInfoTag())
     {
       CEpgInfoTagPtr tag(item->GetPVRChannelInfoTag()->GetEPGNow());
-      return tag ? tag->StartAsLocalTime().GetAsLocalizedTime("", false) : CDateTime::GetCurrentDateTime().GetAsLocalizedTime("", false);
+      if (tag)
+        return tag->StartAsLocalTime().GetAsLocalizedTime("", false);
     }
     if (item->HasEPGInfoTag())
       return item->GetEPGInfoTag()->StartAsLocalTime().GetAsLocalizedTime("", false);
@@ -9932,7 +10339,8 @@ std::string CGUIInfoManager::GetItemLabel(const CFileItem *item, int info, std::
     if (item->HasPVRChannelInfoTag())
     {
       CEpgInfoTagPtr tag(item->GetPVRChannelInfoTag()->GetEPGNow());
-      return tag ? tag->EndAsLocalTime().GetAsLocalizedTime("", false) : CDateTime::GetCurrentDateTime().GetAsLocalizedTime("", false);
+      if (tag)
+        return tag->EndAsLocalTime().GetAsLocalizedTime("", false);
     }
     else if (item->HasEPGInfoTag())
       return item->GetEPGInfoTag()->EndAsLocalTime().GetAsLocalizedTime("", false);
@@ -9950,7 +10358,8 @@ std::string CGUIInfoManager::GetItemLabel(const CFileItem *item, int info, std::
     if (item->HasPVRChannelInfoTag())
     {
       CEpgInfoTagPtr tag(item->GetPVRChannelInfoTag()->GetEPGNow());
-      return tag ? tag->StartAsLocalTime().GetAsLocalizedDate(true) : CDateTime::GetCurrentDateTime().GetAsLocalizedDate(true);
+      if (tag)
+        return tag->StartAsLocalTime().GetAsLocalizedDate(true);
     }
     if (item->HasEPGInfoTag())
       return item->GetEPGInfoTag()->StartAsLocalTime().GetAsLocalizedDate(true);
@@ -9965,7 +10374,8 @@ std::string CGUIInfoManager::GetItemLabel(const CFileItem *item, int info, std::
     if (item->HasPVRChannelInfoTag())
     {
       CEpgInfoTagPtr tag(item->GetPVRChannelInfoTag()->GetEPGNow());
-      return tag ? tag->EndAsLocalTime().GetAsLocalizedDate(true) : CDateTime::GetCurrentDateTime().GetAsLocalizedDate(true);
+      if (tag)
+        return tag->EndAsLocalTime().GetAsLocalizedDate(true);
     }
     if (item->HasEPGInfoTag())
       return item->GetEPGInfoTag()->EndAsLocalTime().GetAsLocalizedDate(true);
@@ -10030,7 +10440,7 @@ std::string CGUIInfoManager::GetItemLabel(const CFileItem *item, int info, std::
       if (tag)
         return tag->StartAsLocalTime().GetAsLocalizedTime("", false);
     }
-    return CDateTime::GetCurrentDateTime().GetAsLocalizedTime("", false);
+    return "";
   case LISTITEM_NEXT_ENDTIME:
     if (item->HasPVRChannelInfoTag())
     {
@@ -10038,7 +10448,7 @@ std::string CGUIInfoManager::GetItemLabel(const CFileItem *item, int info, std::
       if (tag)
         return tag->EndAsLocalTime().GetAsLocalizedTime("", false);
     }
-    return CDateTime::GetCurrentDateTime().GetAsLocalizedTime("", false);
+    return "";
   case LISTITEM_NEXT_STARTDATE:
     if (item->HasPVRChannelInfoTag())
     {
@@ -10046,7 +10456,7 @@ std::string CGUIInfoManager::GetItemLabel(const CFileItem *item, int info, std::
       if (tag)
         return tag->StartAsLocalTime().GetAsLocalizedDate(true);
     }
-    return CDateTime::GetCurrentDateTime().GetAsLocalizedDate(true);
+    return "";
   case LISTITEM_NEXT_ENDDATE:
     if (item->HasPVRChannelInfoTag())
     {
@@ -10054,7 +10464,7 @@ std::string CGUIInfoManager::GetItemLabel(const CFileItem *item, int info, std::
       if (tag)
         return tag->EndAsLocalTime().GetAsLocalizedDate(true);
     }
-    return CDateTime::GetCurrentDateTime().GetAsLocalizedDate(true);
+    return "";
   case LISTITEM_NEXT_PLOT:
     if (item->HasPVRChannelInfoTag())
     {
@@ -10136,6 +10546,14 @@ std::string CGUIInfoManager::GetItemLabel(const CFileItem *item, int info, std::
           return StringUtils::Format("%i", dbId);
       }
     break;
+  case LISTITEM_APPEARANCES:
+    if (item->HasVideoInfoTag())
+    {
+      int appearances = item->GetVideoInfoTag()->m_relevance;
+      if (appearances > -1)
+        return StringUtils::Format("%i", appearances);
+    }
+    break;
   case LISTITEM_STEREOSCOPIC_MODE:
     {
       std::string stereoMode = item->GetProperty("stereomode").asString();
@@ -10154,7 +10572,7 @@ std::string CGUIInfoManager::GetItemLabel(const CFileItem *item, int info, std::
       if (item->HasEPGInfoTag())
         return item->GetEPGInfoTag()->IMDBNumber();
       if (item->HasVideoInfoTag())
-        return item->GetVideoInfoTag()->m_strIMDBNumber;
+        return item->GetVideoInfoTag()->GetUniqueID();
       break;
     }
   case LISTITEM_EPISODENAME:
@@ -10213,11 +10631,7 @@ std::string CGUIInfoManager::GetItemLabel(const CFileItem *item, int info, std::
     break;
   case LISTITEM_ADDON_BROKEN:
     if (item->HasAddonInfo())
-    {
-      if (item->GetAddonInfo()->Broken() == "DEPSNOTMET")
-        return g_localizeStrings.Get(24044);
       return item->GetAddonInfo()->Broken();
-    }
     break;
   case LISTITEM_ADDON_TYPE:
     if (item->HasAddonInfo())
@@ -10767,10 +11181,21 @@ bool CGUIInfoManager::ConditionsChangedValues(const std::map<INFO::InfoPtr, bool
 
 bool CGUIInfoManager::IsPlayerChannelPreviewActive() const
 {
-  return m_playerShowInfo &&
-         g_application.m_pPlayer->IsPlaying() &&
-         m_currentFile->HasPVRChannelInfoTag() &&
-         !g_PVRManager.IsPlayingChannel(m_currentFile->GetPVRChannelInfoTag());
+  bool bReturn(false);
+  if (m_playerShowInfo && m_currentFile->HasPVRChannelInfoTag())
+  {
+    if (m_isPvrChannelPreview)
+    {
+      bReturn = true;
+    }
+    else
+    {
+      bReturn = !m_videoInfo.valid;
+      if (bReturn && m_currentFile->GetPVRChannelInfoTag()->IsRadio())
+        bReturn = !m_audioInfo.valid;
+    }
+  }
+  return bReturn;
 }
 
 CEpgInfoTagPtr CGUIInfoManager::GetEpgInfoTag() const

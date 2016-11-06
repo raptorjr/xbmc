@@ -1,11 +1,5 @@
+cmake_minimum_required(VERSION 3.1)
 project(kodi-addons)
-
-if(WIN32)
-  # there seems to be a bug in the CMake generator implementation in CMake 2.8.x releases for WIN32
-  cmake_minimum_required(VERSION 3.0)
-else()
-  cmake_minimum_required(VERSION 2.8)
-endif()
 
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR})
 
@@ -33,12 +27,11 @@ include(ExternalProject)
 ### setup all the necessary paths
 if(APP_ROOT)
   set(CORE_SOURCE_DIR ${APP_ROOT})
+  unset(APP_ROOT)
   message(WARNING "APP_ROOT is deprecated. Please use CORE_SOURCE_DIR instead.")
 endif()
-if(NOT CORE_SOURCE_DIR AND NOT XBMCROOT)
+if(NOT CORE_SOURCE_DIR)
   set(CORE_SOURCE_DIR ${PROJECT_SOURCE_DIR}/../../..)
-elseif(NOT CORE_SOURCE_DIR)
-  file(TO_CMAKE_PATH "${XBMCROOT}" CORE_SOURCE_DIR)
 else()
   file(TO_CMAKE_PATH "${CORE_SOURCE_DIR}" CORE_SOURCE_DIR)
 endif()
@@ -171,7 +164,8 @@ if(NOT WIN32)
   if(NOT ${can_write} AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
     set(NEED_SUDO TRUE)
     set(ADDON_INSTALL_DIR ${CMAKE_BINARY_DIR}/.install)
-    message(STATUS "NEED_SUDO: ${NEED_SUDO}")
+    list(APPEND BUILD_ARGS -DOVERRIDE_PATHS=ON)
+    message(STATUS "NEED_SUDO: ${NEED_SUDO} (no write permission for ${CMAKE_INSTALL_PREFIX})")
   endif()
 endif()
 
@@ -212,6 +206,7 @@ if(NOT addons)
                                            -DCMAKE_INSTALL_PREFIX:PATH=${ADDONS_DEFINITION_DIR}
                                            -DBUILD_DIR:PATH=${BOOTSTRAP_BUILD_DIR}
                                            -DADDONS_TO_BUILD:STRING=${ADDONS_TO_BUILD_STR}
+                                           -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
                   WORKING_DIRECTORY ${BOOTSTRAP_BUILD_DIR})
 
   # execute the generated bootstrap buildsystem
@@ -251,7 +246,7 @@ foreach(addon ${addons})
       message(STATUS "\n-- ---- Configuring addon ${addon} ----")
       set(SUPPORTED_ADDON_FOUND TRUE)
 
-      get_filename_component(dir ${addon} PATH)
+      get_filename_component(dir ${addon} DIRECTORY)
 
       # check if the addon has a platforms.txt
       set(platform_found FALSE)
@@ -259,9 +254,7 @@ foreach(addon ${addons})
 
       if(${platform_found})
         # make sure the output directory is clean
-        if(EXISTS "${CMAKE_INSTALL_PREFIX}/${id}")
-          file(REMOVE_RECURSE "${CMAKE_INSTALL_PREFIX}/${id}/")
-        endif()
+        file(REMOVE_RECURSE "${CMAKE_INSTALL_PREFIX}/${id}/")
 
         # get the URL and revision of the addon
         list(LENGTH def deflength)
@@ -339,9 +332,7 @@ foreach(addon ${addons})
           endif()
 
           # remove any previously extracted version of the addon
-          if(EXISTS "${BUILD_DIR}/${id}")
-            file(REMOVE_RECURSE "${BUILD_DIR}/${id}")
-          endif()
+          file(REMOVE_RECURSE "${BUILD_DIR}/${id}")
 
           # extract the addon from the archive
           execute_process(COMMAND ${CMAKE_COMMAND} -E tar xzvf ${BUILD_DIR}/download/${archive_name}.tar.gz
@@ -419,12 +410,16 @@ endforeach()
 message(STATUS "")
 
 if(NEED_SUDO)
-  add_custom_target(install
-                    COMMAND ${CMAKE_COMMAND} -E echo "\n\n"
-                    COMMAND ${CMAKE_COMMAND} -E echo "WARNING: sudo rights needed to install to ${CMAKE_INSTALL_PREFIX}\n"
+  add_custom_target(sudo-install
+                    COMMAND ${CMAKE_COMMAND} -E echo "sudo rights needed to install to ${CMAKE_INSTALL_PREFIX}\n"
                     COMMAND sudo ${CMAKE_COMMAND} -E copy_directory ${ADDON_INSTALL_DIR}/ ${CMAKE_INSTALL_PREFIX}/
-                    COMMAND sudo ${CMAKE_COMMAND} -E remove_directory ${ADDON_INSTALL_DIR}/
                     COMMAND sudo -k)
+
+  foreach(_id ${ALL_ADDONS_BUILDING})
+    add_dependencies(sudo-install ${_id})
+  endforeach()
+  message(WARNING "sudo rights needed to install to ${CMAKE_INSTALL_PREFIX}")
+  message(STATUS "\nplease type \"make sudo-install\"\n\n")
 endif()
 
 if(NOT SUPPORTED_ADDON_FOUND)
@@ -436,3 +431,4 @@ endif()
 # add custom target "supported_addons" that returns all addons that are supported on this platform
 string(REPLACE ";" " " ALL_ADDONS_BUILDING "${ALL_ADDONS_BUILDING}")
 add_custom_target(supported_addons COMMAND ${CMAKE_COMMAND} -E echo "ALL_ADDONS_BUILDING: ${ALL_ADDONS_BUILDING}" VERBATIM)
+add_custom_target(need-sudo COMMAND ${CMAKE_COMMAND} -E echo ${NEED_SUDO} VERBATIM)

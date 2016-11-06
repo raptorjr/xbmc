@@ -36,12 +36,11 @@ public:
 
   // Player functions
   virtual void AddVideoPictureHW(DVDVideoPicture &picture, int index);
+  virtual bool RenderUpdateCheckForEmptyField();
   virtual void ReleaseBuffer(int idx);
-  virtual bool IsGuiLayer();
 
   // Feature support
   virtual bool Supports(EINTERLACEMETHOD method);
-  virtual bool Supports(EDEINTERLACEMODE mode);  
 
   virtual EINTERLACEMETHOD AutoInterlaceMethod();
   virtual CRenderInfo GetRenderInfo();
@@ -57,7 +56,6 @@ protected:
   virtual bool LoadShadersHook();
   virtual bool RenderHook(int index);  
   virtual int  GetImageHook(YV12Image *image, int source = AUTOSOURCE, bool readonly = false);
-  virtual bool RenderUpdateVideoHook(bool clear, DWORD flags = 0, DWORD alpha = 255);
 };
 
 #endif

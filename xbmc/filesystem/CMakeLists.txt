@@ -36,7 +36,6 @@ set(SOURCES AddonsDirectory.cpp
             MusicSearchDirectory.cpp
             NFSDirectory.cpp
             NFSFile.cpp
-            NptXbmcFile.cpp
             OverrideDirectory.cpp
             OverrideFile.cpp
             PipeFile.cpp
@@ -63,8 +62,6 @@ set(SOURCES AddonsDirectory.cpp
             udf25.cpp
             UDFDirectory.cpp
             UDFFile.cpp
-            UPnPDirectory.cpp
-            UPnPFile.cpp
             VideoDatabaseDirectory.cpp
             VirtualDirectory.cpp
             XbtDirectory.cpp
@@ -143,8 +140,6 @@ set(HEADERS AddonsDirectory.h
             udf25.h
             UDFDirectory.h
             UDFFile.h
-            UPnPDirectory.h
-            UPnPFile.h
             VideoDatabaseDirectory.h
             VirtualDirectory.h
             XbtDirectory.h
@@ -166,7 +161,7 @@ if(CORE_SYSTEM_NAME STREQUAL android)
                       AndroidAppFile.h)
 endif()
 
-if(NOT CORE_SYSTEM_NAME STREQUAL windows)
+if(NOT CORE_SYSTEM_NAME STREQUAL windows AND ENABLE_SMBCLIENT)
   list(APPEND SOURCES SMBDirectory.cpp
                       SMBFile.cpp)
   list(APPEND HEADERS SMBDirectory.h
@@ -180,21 +175,15 @@ if(BLURAY_FOUND)
                       BlurayFile.h)
 endif()
 
-include_directories(${CORE_SOURCE_DIR}/lib/libUPnP
-                    ${CORE_SOURCE_DIR}/lib/libUPnP/Platinum/Source/Core
-                    ${CORE_SOURCE_DIR}/lib/libUPnP/Platinum/Source/Platinum
-                    ${CORE_SOURCE_DIR}/lib/libUPnP/Platinum/Source/Devices/MediaConnect
-                    ${CORE_SOURCE_DIR}/lib/libUPnP/Platinum/Source/Devices/MediaRenderer
-                    ${CORE_SOURCE_DIR}/lib/libUPnP/Platinum/Source/Devices/MediaServer
-                    ${CORE_SOURCE_DIR}/lib/libUPnP/Platinum/Source/Extras
-                    ${CORE_SOURCE_DIR}/lib/libUPnP/Neptune/Source/System/Posix
-                    ${CORE_SOURCE_DIR}/lib/libUPnP/Neptune/Source/Core)
-
-add_definitions(-DNPT_CONFIG_ENABLE_LOGGING)
+if(ENABLE_UPNP)
+  list(APPEND SOURCES NptXbmcFile.cpp
+                      UPnPDirectory.cpp
+                      UPnPFile.cpp)
+  list(APPEND HEADERS UPnPDirectory.h
+                      UPnPFile.h)
+endif()
 
 core_add_library(filesystem)
-add_dependencies(filesystem libcpluff)
-
-if(ENABLE_INTERNAL_FFMPEG)
-  add_dependencies(filesystem ffmpeg)
+if(ENABLE_STATIC_LIBS AND ENABLE_UPNP)
+  target_link_libraries(filesystem PRIVATE upnp)
 endif()

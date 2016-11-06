@@ -18,12 +18,12 @@
  *
  */
 
+#include "Variant.h"
+
 #include <stdlib.h>
 #include <string.h>
 #include <sstream>
 #include <utility>
-
-#include "Variant.h"
 
 #ifndef strtoll
 #ifdef TARGET_WINDOWS
@@ -127,6 +127,11 @@ double str2double(const std::wstring &str, double fallback /* = 0.0 */)
     return result;
 
   return fallback;
+}
+
+CVariant::CVariant()
+  : CVariant(VariantTypeNull)
+{
 }
 
 CVariant CVariant::ConstNullVariant = CVariant::VariantTypeConstNull;
@@ -302,14 +307,28 @@ CVariant::~CVariant()
 
 void CVariant::cleanup()
 {
-  if (m_type == VariantTypeString)
+  switch (m_type)
+  {
+  case VariantTypeString:
     delete m_data.string;
-  else if (m_type == VariantTypeWideString)
+    m_data.string = nullptr;
+    break;
+
+  case VariantTypeWideString:
     delete m_data.wstring;
-  else if (m_type == VariantTypeArray)
+    m_data.wstring = nullptr;
+    break;
+
+  case VariantTypeArray:
     delete m_data.array;
-  else if (m_type == VariantTypeObject)
+    m_data.array = nullptr;
+    break;
+
+  case VariantTypeObject:
     delete m_data.map;
+    m_data.map = nullptr;
+    break;
+  }
   m_type = VariantTypeNull;
 }
 

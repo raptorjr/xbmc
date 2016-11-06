@@ -51,6 +51,7 @@ namespace XFILE
       virtual ~CCurlFile();
       virtual bool Open(const CURL& url);
       virtual bool OpenForWrite(const CURL& url, bool bOverWrite = false);
+      virtual bool ReOpen(const CURL& url);
       virtual bool Exists(const CURL& url);
       virtual int64_t  Seek(int64_t iFilePosition, int iWhence=SEEK_SET);
       virtual int64_t GetPosition();
@@ -94,6 +95,7 @@ namespace XFILE
 
       const CHttpHeader& GetHttpHeader() const { return m_state->m_httpheader; }
       std::string GetServerReportedCharset(void);
+      std::string GetURL(void);
 
       /* static function that will get content type of a file */
       static bool GetHttpHeader(const CURL &url, CHttpHeader &headers);

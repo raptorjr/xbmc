@@ -147,6 +147,24 @@ namespace XBMCAddon
       }
     }
 
+    void ListItem::setUniqueIDs(const Properties& dictionary)
+    {
+      if (!item) return;
+
+      LOCKGUI;
+      CVideoInfoTag& vtag = *item->GetVideoInfoTag();
+      for (Properties::const_iterator it = dictionary.begin(); it != dictionary.end(); ++it)
+        vtag.SetUniqueID(it->second, it->first);
+    }
+
+    void ListItem::setRating(std::string type, float rating, int votes /* = 0 */, bool defaultt /* = false */)
+    {
+      if (!item) return;
+
+      LOCKGUI;
+      item->GetVideoInfoTag()->SetRating(rating, votes, type, defaultt);
+    }
+
     void ListItem::select(bool selected)
     {
       if (!item) return;
@@ -230,6 +248,23 @@ namespace XBMCAddon
       return item->GetArt(key);
     }
 
+    String ListItem::getUniqueID(const char* key)
+    {
+      LOCKGUI;
+      return item->GetVideoInfoTag()->GetUniqueID(key);
+    }
+
+    float ListItem::getRating(const char* key)
+    {
+      LOCKGUI;
+      return item->GetVideoInfoTag()->GetRating(key).rating;
+    }
+
+    int ListItem::getVotes(const char* key)
+    {
+      LOCKGUI;
+      return item->GetVideoInfoTag()->GetRating(key).votes;
+    }
 
     void ListItem::setPath(const String& path)
     {
@@ -274,6 +309,12 @@ namespace XBMCAddon
 
     String ListItem::getfilename()
     {
+      return item->GetPath();
+    }
+
+    String ListItem::getPath()
+    {
+      LOCKGUI;
       return item->GetPath();
     }
 
@@ -398,7 +439,7 @@ namespace XBMCAddon
           else if (key == "set")
             item->GetVideoInfoTag()->m_strSet = value;
           else if (key == "imdbnumber")
-            item->GetVideoInfoTag()->m_strIMDBNumber = value;
+            item->GetVideoInfoTag()->SetUniqueID(value);
           else if (key == "code")
             item->GetVideoInfoTag()->m_strProductionCode = value;
           else if (key == "aired")
@@ -553,6 +594,30 @@ namespace XBMCAddon
       }
     } // end ListItem::setInfo
 
+    void ListItem::setCast(const std::vector<Properties>& actors)
+    {
+      LOCKGUI;
+      item->GetVideoInfoTag()->m_cast.clear();
+      for (const auto& dictionary: actors)
+      {
+        SActorInfo info;
+        for (auto it = dictionary.begin(); it != dictionary.end(); ++it)
+        {
+          const String& key = it->first;
+          const String& value = it->second;
+          if (key == "name")
+            info.strName = value;
+          else if (key == "role")
+            info.strRole = value;
+          else if (key == "thumbnail")
+            info.thumbUrl = value;
+          else if (key == "order")
+            info.order = strtol(value.c_str(), NULL, 10);
+        }
+        item->GetVideoInfoTag()->m_cast.push_back(std::move(info));
+      }
+    }
+
     void ListItem::addStreamInfo(const char* cType, const Properties& dictionary)
     {
       LOCKGUI;
@@ -612,6 +677,7 @@ namespace XBMCAddon
         }
         item->GetVideoInfoTag()->m_streamDetails.AddStream(subtitle);
       }
+      item->GetVideoInfoTag()->m_streamDetails.DetermineBestStreams();
     } // end ListItem::addStreamInfo
 
     void ListItem::addContextMenuItems(const std::vector<Tuple<String,String> >& items, bool replaceItems /* = false */)

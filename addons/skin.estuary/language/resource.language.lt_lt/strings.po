@@ -302,7 +302,7 @@ msgstr "Pridėti media šaltinių"
 
 msgctxt "#31071"
 msgid "by"
-msgstr "pagal"
+msgstr "nuo"
 
 msgctxt "#31072"
 msgid "Power Options"
@@ -547,3 +547,11 @@ msgstr "Pasirinkti pradinio ekrano Fanart paketą"
 msgctxt "#31132"
 msgid "min"
 msgstr "min"
+
+msgctxt "#31133"
+msgid "Hide"
+msgstr "Slėpti"
+
+msgctxt "#31134"
+msgid "Remaining"
+msgstr "Liko"

@@ -25,6 +25,7 @@
 #include "windowing/WindowingFactory.h"
 #include "guilib/GraphicContext.h"
 #include "guilib/TextureManager.h"
+#include "cores/VideoPlayer/Process/ProcessInfo.h"
 #include "cores/VideoPlayer/VideoRenderers/RenderManager.h"
 #include "DVDVideoCodecFFmpeg.h"
 #include "DVDClock.h"
@@ -467,13 +468,14 @@ int CVideoSurfaces::Size()
 // CVDPAU
 //-----------------------------------------------------------------------------
 
-CDecoder::CDecoder() : m_vdpauOutput(&m_inMsgEvent)
+CDecoder::CDecoder(CProcessInfo& processInfo) : m_vdpauOutput(&m_inMsgEvent), m_processInfo(processInfo)
 {
   m_vdpauConfig.videoSurfaces = &m_videoSurfaces;
 
   m_vdpauConfigured = false;
   m_DisplayState = VDPAU_OPEN;
   m_vdpauConfig.context = 0;
+  m_vdpauConfig.processInfo = &m_processInfo;
 }
 
 bool CDecoder::Open(AVCodecContext* avctx, AVCodecContext* mainctx, const enum AVPixelFormat fmt, unsigned int surfaces)
@@ -768,31 +770,6 @@ bool CDecoder::IsVDPAUFormat(AVPixelFormat format)
 bool CDecoder::Supports(VdpVideoMixerFeature feature)
 {
   return m_vdpauConfig.context->Supports(feature);
-}
-
-bool CDecoder::Supports(EINTERLACEMETHOD method)
-{
-  if(method == VS_INTERLACEMETHOD_VDPAU_BOB
-  || method == VS_INTERLACEMETHOD_AUTO)
-    return true;
-
-  if (method == VS_INTERLACEMETHOD_RENDER_BOB)
-    return true;
-
-  if (method == VS_INTERLACEMETHOD_VDPAU_INVERSE_TELECINE)
-    return false;
-
-  for(SInterlaceMapping* p = g_interlace_mapping; p->method != VS_INTERLACEMETHOD_NONE; p++)
-  {
-    if(p->method == method)
-      return Supports(p->feature);
-  }
-  return false;
-}
-
-EINTERLACEMETHOD CDecoder::AutoInterlaceMethod()
-{
-  return VS_INTERLACEMETHOD_RENDER_BOB;
 }
 
 void CDecoder::FiniVDPAUOutput()
@@ -1525,7 +1502,7 @@ void CMixer::StateMachine(int signal, Protocol *port, Message *msg)
           }
           else if (!m_outputSurfaces.empty() &&
                    m_config.stats->IsDraining() &&
-                   m_mixerInput.size() == 1)
+                   m_mixerInput.size() >= 1)
           {
             CVdpauDecodedPicture pic;
             pic.DVDPic = m_mixerInput[0].DVDPic;
@@ -1783,10 +1760,8 @@ void CMixer::CheckFeatures()
     m_Sharpness = CMediaSettings::GetInstance().GetCurrentVideoSettings().m_Sharpness;
     SetSharpness();
   }
-  if (m_DeintMode != CMediaSettings::GetInstance().GetCurrentVideoSettings().m_DeinterlaceMode ||
-      m_Deint     != CMediaSettings::GetInstance().GetCurrentVideoSettings().m_InterlaceMethod)
+  if (m_Deint != CMediaSettings::GetInstance().GetCurrentVideoSettings().m_InterlaceMethod)
   {
-    m_DeintMode = CMediaSettings::GetInstance().GetCurrentVideoSettings().m_DeinterlaceMode;
     m_Deint     = CMediaSettings::GetInstance().GetCurrentVideoSettings().m_InterlaceMethod;
     SetDeinterlacing();
   }
@@ -2015,35 +1990,6 @@ void CMixer::SetSharpness()
   CheckStatus(vdp_st, __LINE__);
 }
 
-EINTERLACEMETHOD CMixer::GetDeinterlacingMethod(bool log /* = false */)
-{
-  EINTERLACEMETHOD method = CMediaSettings::GetInstance().GetCurrentVideoSettings().m_InterlaceMethod;
-  if (method == VS_INTERLACEMETHOD_AUTO)
-  {
-    int deint = -1;
-//    if (m_config.outHeight >= 720)
-//      deint = g_advancedSettings.m_videoVDPAUdeintHD;
-//    else
-//      deint = g_advancedSettings.m_videoVDPAUdeintSD;
-
-    if (deint != -1)
-    {
-      if (m_config.vdpau->Supports(EINTERLACEMETHOD(deint)))
-      {
-        method = EINTERLACEMETHOD(deint);
-        if (log)
-          CLog::Log(LOGNOTICE, "CVDPAU::GetDeinterlacingMethod: set de-interlacing to %d",  deint);
-      }
-      else
-      {
-        if (log)
-          CLog::Log(LOGWARNING, "CVDPAU::GetDeinterlacingMethod: method for de-interlacing (advanced settings) not supported");
-      }
-    }
-  }
-  return method;
-}
-
 void CMixer::SetDeinterlacing()
 {
   VdpStatus vdp_st;
@@ -2051,29 +1997,28 @@ void CMixer::SetDeinterlacing()
   if (m_videoMixer == VDP_INVALID_HANDLE)
     return;
 
-  EDEINTERLACEMODE   mode = CMediaSettings::GetInstance().GetCurrentVideoSettings().m_DeinterlaceMode;
-  EINTERLACEMETHOD method = GetDeinterlacingMethod(true);
+  EINTERLACEMETHOD method = CMediaSettings::GetInstance().GetCurrentVideoSettings().m_InterlaceMethod;
 
   VdpVideoMixerFeature feature[] = { VDP_VIDEO_MIXER_FEATURE_DEINTERLACE_TEMPORAL,
                                      VDP_VIDEO_MIXER_FEATURE_DEINTERLACE_TEMPORAL_SPATIAL,
                                      VDP_VIDEO_MIXER_FEATURE_INVERSE_TELECINE };
 
-  if (mode == VS_DEINTERLACEMODE_OFF)
+  if (method == VS_INTERLACEMETHOD_NONE)
   {
     VdpBool enabled[] = {0,0,0};
     vdp_st = m_config.context->GetProcs().vdp_video_mixer_set_feature_enables(m_videoMixer, ARSIZE(feature), feature, enabled);
   }
   else
   {
-    if (method == VS_INTERLACEMETHOD_AUTO)
+    // fall back path if called with non supported method
+    if (!m_config.processInfo->Supports(method))
     {
-      VdpBool enabled[] = {1,0,0};
-      if (g_advancedSettings.m_videoVDPAUtelecine)
-        enabled[2] = 1;
-      vdp_st = m_config.context->GetProcs().vdp_video_mixer_set_feature_enables(m_videoMixer, ARSIZE(feature), feature, enabled);
+      method = VS_INTERLACEMETHOD_VDPAU_TEMPORAL;
+      m_Deint = VS_INTERLACEMETHOD_VDPAU_TEMPORAL;
     }
-    else if (method == VS_INTERLACEMETHOD_VDPAU_TEMPORAL
-         ||  method == VS_INTERLACEMETHOD_VDPAU_TEMPORAL_HALF)
+
+    if (method == VS_INTERLACEMETHOD_VDPAU_TEMPORAL
+    ||  method == VS_INTERLACEMETHOD_VDPAU_TEMPORAL_HALF)
     {
       VdpBool enabled[] = {1,0,0};
       if (g_advancedSettings.m_videoVDPAUtelecine)
@@ -2099,6 +2044,10 @@ void CMixer::SetDeinterlacing()
   SetDeintSkipChroma();
 
   m_config.useInteropYuv = !CSettings::GetInstance().GetBool(CSettings::SETTING_VIDEOPLAYER_USEVDPAUMIXER);
+
+  std::string deintStr = GetDeintStrFromInterlaceMethod(method);
+  // update deinterlacing method used in processInfo (none if progressive)
+  m_config.processInfo->SetVideoDeintMethod(deintStr);
 }
 
 void CMixer::SetDeintSkipChroma()
@@ -2283,7 +2232,6 @@ void CMixer::Init()
   m_Contrast = 0.0;
   m_NoiseReduction = 0.0;
   m_Sharpness = 0.0;
-  m_DeintMode = 0;
   m_Deint = 0;
   m_Upscale = 0;
   m_SeenInterlaceFlag = false;
@@ -2295,6 +2243,22 @@ void CMixer::Init()
   m_config.useInteropYuv = !CSettings::GetInstance().GetBool(CSettings::SETTING_VIDEOPLAYER_USEVDPAUMIXER);
 
   CreateVdpauMixer();
+
+  // update deinterlacing methods in processInfo
+  std::list<EINTERLACEMETHOD> deintMethods;
+  deintMethods.push_back(VS_INTERLACEMETHOD_NONE);
+  for(SInterlaceMapping* p = g_interlace_mapping; p->method != VS_INTERLACEMETHOD_NONE; p++)
+  {
+    if (p->method == VS_INTERLACEMETHOD_VDPAU_INVERSE_TELECINE)
+      continue;
+
+    if (m_config.vdpau->Supports(p->feature))
+      deintMethods.push_back(p->method);
+  }
+  deintMethods.push_back(VS_INTERLACEMETHOD_VDPAU_BOB);
+  deintMethods.push_back(VS_INTERLACEMETHOD_RENDER_BOB);
+  m_config.processInfo->UpdateDeinterlacingMethods(deintMethods);
+  m_config.processInfo->SetDeinterlacingMethodDefault(EINTERLACEMETHOD::VS_INTERLACEMETHOD_VDPAU_TEMPORAL);
 }
 
 void CMixer::Uninit()
@@ -2339,6 +2303,29 @@ void CMixer::Flush()
   }
 }
 
+std::string CMixer::GetDeintStrFromInterlaceMethod(EINTERLACEMETHOD method)
+{
+  switch (method)
+  {
+    case VS_INTERLACEMETHOD_NONE:
+      return "none";
+    case VS_INTERLACEMETHOD_VDPAU_BOB:
+      return "vdpau-bob";
+    case VS_INTERLACEMETHOD_VDPAU_TEMPORAL:
+      return "vdpau-temp";
+    case VS_INTERLACEMETHOD_VDPAU_TEMPORAL_HALF:
+      return "vdpau-temp-half";
+    case VS_INTERLACEMETHOD_VDPAU_TEMPORAL_SPATIAL:
+      return "vdpau-temp-spat";
+    case VS_INTERLACEMETHOD_VDPAU_TEMPORAL_SPATIAL_HALF:
+      return "vdpau-temp-spat-half";
+    case VS_INTERLACEMETHOD_RENDER_BOB:
+      return "bob";
+    default:
+      return "unknown";
+  }
+}
+
 void CMixer::InitCycle()
 {
   CheckFeatures();
@@ -2352,26 +2339,26 @@ void CMixer::InitCycle()
 
   m_config.stats->SetCanSkipDeint(false);
 
-  EDEINTERLACEMODE   mode = CMediaSettings::GetInstance().GetCurrentVideoSettings().m_DeinterlaceMode;
-  EINTERLACEMETHOD method = GetDeinterlacingMethod();
+  EINTERLACEMETHOD method = CMediaSettings::GetInstance().GetCurrentVideoSettings().m_InterlaceMethod;
   bool interlaced = m_mixerInput[1].DVDPic.iFlags & DVP_FLAG_INTERLACED;
   m_SeenInterlaceFlag |= interlaced;
 
   if (!(flags & DVD_CODEC_CTRL_NO_POSTPROC) &&
-      (mode == VS_DEINTERLACEMODE_FORCE ||
-      (mode == VS_DEINTERLACEMODE_AUTO && interlaced)))
+      interlaced &&
+      method != VS_INTERLACEMETHOD_NONE)
   {
-    if((method == VS_INTERLACEMETHOD_AUTO && interlaced)
-      ||  method == VS_INTERLACEMETHOD_VDPAU_BOB
-      ||  method == VS_INTERLACEMETHOD_VDPAU_TEMPORAL
-      ||  method == VS_INTERLACEMETHOD_VDPAU_TEMPORAL_HALF
-      ||  method == VS_INTERLACEMETHOD_VDPAU_TEMPORAL_SPATIAL
-      ||  method == VS_INTERLACEMETHOD_VDPAU_TEMPORAL_SPATIAL_HALF
-      ||  method == VS_INTERLACEMETHOD_VDPAU_INVERSE_TELECINE )
+    if (!m_config.processInfo->Supports(method))
+      method = VS_INTERLACEMETHOD_VDPAU_TEMPORAL;
+
+    if (method == VS_INTERLACEMETHOD_VDPAU_BOB ||
+        method == VS_INTERLACEMETHOD_VDPAU_TEMPORAL ||
+        method == VS_INTERLACEMETHOD_VDPAU_TEMPORAL_HALF ||
+        method == VS_INTERLACEMETHOD_VDPAU_TEMPORAL_SPATIAL ||
+        method == VS_INTERLACEMETHOD_VDPAU_TEMPORAL_SPATIAL_HALF)
     {
-      if(method == VS_INTERLACEMETHOD_VDPAU_TEMPORAL_HALF
-        || method == VS_INTERLACEMETHOD_VDPAU_TEMPORAL_SPATIAL_HALF
-        || !g_graphicsContext.IsFullScreenVideo())
+      if(method == VS_INTERLACEMETHOD_VDPAU_TEMPORAL_HALF ||
+         method == VS_INTERLACEMETHOD_VDPAU_TEMPORAL_SPATIAL_HALF ||
+         !g_graphicsContext.IsFullScreenVideo())
         m_mixersteps = 1;
       else
       {
@@ -2401,18 +2388,6 @@ void CMixer::InitCycle()
       m_mixerfield = VDP_VIDEO_MIXER_PICTURE_STRUCTURE_FRAME;
       m_mixerInput[1].DVDPic.format = RENDER_FMT_VDPAU_420;
       m_config.useInteropYuv = true;
-    }
-    else
-    {
-      CLog::Log(LOGERROR, "CMixer::%s - interlace method: %d not supported, setting to AUTO", __FUNCTION__, method);
-      m_mixersteps = 1;
-      m_mixerfield = VDP_VIDEO_MIXER_PICTURE_STRUCTURE_FRAME;
-      m_mixerInput[1].DVDPic.format = RENDER_FMT_VDPAU;
-      m_mixerInput[1].DVDPic.iFlags &= ~(DVP_FLAG_TOP_FIELD_FIRST |
-                                        DVP_FLAG_REPEAT_TOP_FIELD |
-                                        DVP_FLAG_INTERLACED);
-
-      CMediaSettings::GetInstance().GetCurrentVideoSettings().m_InterlaceMethod = VS_INTERLACEMETHOD_AUTO;
     }
   }
   else
@@ -3057,6 +3032,7 @@ void COutput::Flush()
       pic = *((CVdpauRenderPicture**)msg->data);
       QueueReturnPicture(pic);
     }
+    msg->Release();
   }
 
   // reset used render flag which was cleared on mixer flush

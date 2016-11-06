@@ -315,6 +315,11 @@ void CLangInfo::CRegion::SetGlobalLocale()
 #endif
   g_charsetConverter.resetSystemCharset();
   CLog::Log(LOGINFO, "global locale set to %s", strLocale.c_str());
+
+#ifdef TARGET_ANDROID
+  // Force UTF8 for, e.g., vsnprintf
+  setlocale(LC_ALL, "C.UTF-8");
+#endif
 }
 
 CLangInfo::CLangInfo()
@@ -763,7 +768,7 @@ bool CLangInfo::SetLanguage(bool& fallback, const std::string &strLanguage /* = 
     auto locale = CSettings::GetInstance().GetString(CSettings::SETTING_LOCALE_LANGUAGE);
     for (const auto& addon : addons)
     {
-      auto path = URIUtils::AddFileToFolder(addon->Path(), "resources/language/");
+      auto path = URIUtils::AddFileToFolder(addon->Path(), "resources", "language/");
       g_localizeStrings.LoadAddonStrings(path, locale, addon->ID());
     }
   }

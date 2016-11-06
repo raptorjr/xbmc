@@ -46,6 +46,7 @@ using namespace KODI::MESSAGING;
 #define CONTROL_BTN_RECORD              6
 #define CONTROL_BTN_OK                  7
 #define CONTROL_BTN_PLAY_RECORDING      8
+#define CONTROL_BTN_ADD_TIMER           9
 
 CGUIDialogPVRGuideInfo::CGUIDialogPVRGuideInfo(void)
     : CGUIDialog(WINDOW_DIALOG_PVR_GUIDE_INFO, "DialogPVRInfo.xml")
@@ -77,6 +78,19 @@ bool CGUIDialogPVRGuideInfo::ActionCancelTimer(const CFileItemPtr &timer)
     bReturn = CGUIWindowPVRBase::StopRecordFile(timer.get());
   else
     bReturn = CGUIWindowPVRBase::DeleteTimer(timer.get());
+
+  if (bReturn)
+    Close();
+
+  return bReturn;
+}
+
+bool CGUIDialogPVRGuideInfo::ActionAddTimerRule(const CEpgInfoTagPtr &tag)
+{
+  bool bReturn = false;
+
+  const CFileItemPtr item(new CFileItem(tag));
+  bReturn = CGUIWindowPVRBase::AddTimerRule(item.get(), true);
 
   if (bReturn)
     Close();
@@ -123,6 +137,21 @@ bool CGUIDialogPVRGuideInfo::OnClickButtonRecord(CGUIMessage &message)
   return bReturn;
 }
 
+bool CGUIDialogPVRGuideInfo::OnClickButtonAddTimer(CGUIMessage &message)
+{
+  bool bReturn = false;
+
+  if (message.GetSenderId() == CONTROL_BTN_ADD_TIMER)
+  {
+    if (m_progItem && !m_progItem->Timer())
+      ActionAddTimerRule(m_progItem);
+
+    bReturn = true;
+  }
+
+  return bReturn;
+}
+
 bool CGUIDialogPVRGuideInfo::OnClickButtonPlay(CGUIMessage &message)
 {
   bool bReturn = false;
@@ -130,12 +159,11 @@ bool CGUIDialogPVRGuideInfo::OnClickButtonPlay(CGUIMessage &message)
   if (message.GetSenderId() == CONTROL_BTN_SWITCH || message.GetSenderId() == CONTROL_BTN_PLAY_RECORDING)
   {
     Close();
-    PlayBackRet ret = PLAYBACK_CANCELED;
 
     if (m_progItem)
     {
       if (message.GetSenderId() == CONTROL_BTN_PLAY_RECORDING && m_progItem->HasRecording())
-        ret = g_application.PlayFile(CFileItem(m_progItem->Recording()), "videoplayer");
+        g_application.PlayFile(CFileItem(m_progItem->Recording()), "videoplayer");
       else if (m_progItem->HasPVRChannel())
       {
         CPVRChannelPtr channel = m_progItem->ChannelTag();
@@ -190,7 +218,8 @@ bool CGUIDialogPVRGuideInfo::OnMessage(CGUIMessage& message)
     return OnClickButtonOK(message) ||
            OnClickButtonRecord(message) ||
            OnClickButtonPlay(message) ||
-           OnClickButtonFind(message);
+           OnClickButtonFind(message) ||
+           OnClickButtonAddTimer(message);
   }
 
   return CGUIDialog::OnMessage(message);
@@ -241,6 +270,9 @@ void CGUIDialogPVRGuideInfo::OnInitWindow()
       SET_CONTROL_LABEL(CONTROL_BTN_RECORD, 19060); /* Delete timer */
       bHideRecord = false;
     }
+
+    /* already has a timer. hide the add timer button */
+    SET_CONTROL_HIDDEN(CONTROL_BTN_ADD_TIMER);
   }
   else if (m_progItem->EndAsLocalTime() > CDateTime::GetCurrentDateTime())
   {

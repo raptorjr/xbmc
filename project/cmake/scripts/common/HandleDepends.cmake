@@ -21,7 +21,7 @@ function(add_addon_depends addon searchpath)
       file(STRINGS ${file} def)
       separate_arguments(def)
       list(LENGTH def deflength)
-      get_filename_component(dir ${file} PATH)
+      get_filename_component(dir ${file} DIRECTORY)
 
       # get the id of the dependency
       if(NOT "${def}" STREQUAL "")
@@ -76,8 +76,11 @@ function(add_addon_depends addon searchpath)
           message(${BUILD_ARGS})
         endif()
 
-        # if there's a CMakeLists.txt use it to prepare the build
+        # prepare patchfile. ensure we have a clean file after reconfiguring
         set(PATCH_FILE ${BUILD_DIR}/${id}/tmp/patch.cmake)
+        file(REMOVE ${PATCH_FILE})
+
+        # if there's a CMakeLists.txt use it to prepare the build
         if(EXISTS ${dir}/CMakeLists.txt)
           set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${dir}/CMakeLists.txt)
           file(APPEND ${PATCH_FILE}

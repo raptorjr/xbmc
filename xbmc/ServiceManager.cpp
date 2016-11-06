@@ -20,7 +20,10 @@
 
 #include "ServiceManager.h"
 #include "addons/BinaryAddonCache.h"
+#include "ContextMenuManager.h"
 #include "cores/AudioEngine/Engines/ActiveAE/AudioDSPAddons/ActiveAEDSP.h"
+#include "cores/DataCacheCore.h"
+#include "PlayListPlayer.h"
 #include "utils/log.h"
 #include "interfaces/AnnouncementManager.h"
 #include "interfaces/generic/ScriptInvocationManager.h"
@@ -34,12 +37,18 @@ bool CServiceManager::Init1()
 
   m_XBPython.reset(new XBPython());
   CScriptInvocationManager::GetInstance().RegisterLanguageInvocationHandler(m_XBPython.get(), ".py");
+  
+  m_Platform.reset(CPlatform::CreateInstance());
+
+  m_playlistPlayer.reset(new PLAYLIST::CPlayListPlayer());
 
   return true;
 }
 
 bool CServiceManager::Init2()
 {
+  m_Platform->Init();
+  
   m_addonMgr.reset(new ADDON::CAddonMgr());
   if (!m_addonMgr->Init())
   {
@@ -49,9 +58,12 @@ bool CServiceManager::Init2()
 
   m_ADSPManager.reset(new ActiveAE::CActiveAEDSP());
   m_PVRManager.reset(new PVR::CPVRManager());
+  m_dataCacheCore.reset(new CDataCacheCore());
 
   m_binaryAddonCache.reset( new ADDON::CBinaryAddonCache());
   m_binaryAddonCache->Init();
+
+  m_contextMenuManager.reset(new CContextMenuManager(*m_addonMgr.get()));
 
   return true;
 }
@@ -60,12 +72,14 @@ bool CServiceManager::Init3()
 {
   m_ADSPManager->Init();
   m_PVRManager->Init();
+  m_contextMenuManager->Init();
 
   return true;
 }
 
 void CServiceManager::Deinit()
 {
+  m_contextMenuManager.reset();
   m_binaryAddonCache.reset();
   m_PVRManager.reset();
   m_ADSPManager.reset();
@@ -103,4 +117,35 @@ PVR::CPVRManager& CServiceManager::GetPVRManager()
 ActiveAE::CActiveAEDSP& CServiceManager::GetADSPManager()
 {
   return *m_ADSPManager;
+}
+
+CContextMenuManager& CServiceManager::GetContextMenuManager()
+{
+  return *m_contextMenuManager;
+}
+
+CDataCacheCore& CServiceManager::GetDataCacheCore()
+{
+  return *m_dataCacheCore;
+}
+
+CPlatform& CServiceManager::GetPlatform()
+{
+  return *m_Platform;
+}
+
+PLAYLIST::CPlayListPlayer& CServiceManager::GetPlaylistPlayer()
+{
+  return *m_playlistPlayer;
+}
+
+// deleters for unique_ptr
+void CServiceManager::delete_dataCacheCore::operator()(CDataCacheCore *p) const
+{
+  delete p;
+}
+
+void CServiceManager::delete_contextMenuManager::operator()(CContextMenuManager *p) const
+{
+  delete p;
 }

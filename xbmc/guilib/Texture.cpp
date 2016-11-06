@@ -1,5 +1,5 @@
 /*
- *      Copyright (C) 2005-2013 Team XBMC
+ *      Copyright (C) 2005-2015 Team XBMC
  *      http://xbmc.org
  *
  *  This Program is free software; you can redistribute it and/or modify
@@ -43,7 +43,8 @@
 /*                                                                      */
 /************************************************************************/
 CBaseTexture::CBaseTexture(unsigned int width, unsigned int height, unsigned int format)
- : m_hasAlpha( true )
+ : m_hasAlpha( true ),
+   m_mipmapping( false )
 {
   m_pixels = NULL;
   m_loadedToGPU = false;
@@ -107,7 +108,12 @@ void CBaseTexture::Allocate(unsigned int width, unsigned int height, unsigned in
   if (GetPitch() * GetRows() > 0)
   {
     size_t size = GetPitch() * GetRows();
-    m_pixels = (unsigned char*) _aligned_malloc(size, 16);
+    m_pixels = (unsigned char*) _aligned_malloc(size, 32);
+
+    if (m_pixels == nullptr)
+    {
+      CLog::Log(LOGERROR, "%s - Could not allocate %zu bytes. Out of memory.", __FUNCTION__, size);
+    }
   }
 }
 
@@ -120,6 +126,9 @@ void CBaseTexture::Update(unsigned int width, unsigned int height, unsigned int 
     return;
 
   Allocate(width, height, format);
+  
+  if (m_pixels == nullptr)
+    return;
 
   unsigned int srcPitch = pitch ? pitch : GetPitch(width);
   unsigned int srcRows = GetRows(height);
@@ -147,6 +156,9 @@ void CBaseTexture::Update(unsigned int width, unsigned int height, unsigned int 
 
 void CBaseTexture::ClampToEdge()
 {
+  if (m_pixels == nullptr)
+    return;
+
   unsigned int imagePitch = GetPitch(m_imageWidth);
   unsigned int imageRows = GetRows(m_imageHeight);
   unsigned int texturePitch = GetPitch(m_textureWidth);
@@ -301,7 +313,7 @@ bool CBaseTexture::LoadIImage(IImage *pImage, unsigned char* buffer, unsigned in
     if (pImage->Width() > 0 && pImage->Height() > 0)
     {
       Allocate(pImage->Width(), pImage->Height(), XB_FMT_A8R8G8B8);
-      if (pImage->Decode(m_pixels, GetTextureWidth(), GetRows(), GetPitch(), XB_FMT_A8R8G8B8))
+      if (m_pixels != nullptr && pImage->Decode(m_pixels, GetTextureWidth(), GetRows(), GetPitch(), XB_FMT_A8R8G8B8))
       {
         if (pImage->Orientation())
           m_orientation = pImage->Orientation() - 1;
@@ -432,4 +444,14 @@ unsigned int CBaseTexture::GetBlockSize() const
 bool CBaseTexture::HasAlpha() const
 {
   return m_hasAlpha;
+}
+
+void CBaseTexture::SetMipmapping()
+{
+  m_mipmapping = true;
+}
+
+bool CBaseTexture::IsMipmapped() const
+{
+  return m_mipmapping;
 }

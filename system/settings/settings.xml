@@ -78,18 +78,7 @@
           <control type="list" format="string" />
         </setting>
       </group>
-      <group id="3">
-        <requirement>
-          <and>
-            <or>
-              <condition>HAS_GL</condition>
-              <condition>HAS_GLESv2</condition>
-            </or>
-            <condition>HAVE_LIBVDPAU</condition>
-          </and>
-        </requirement>
-      </group>
-      <group id="4" label="14231">
+      <group id="3" label="14231">
         <setting id="videoplayer.rendermethod" type="integer" label="13415" help="36153">
           <level>2</level>
           <default>0</default> <!-- RENDER_METHOD_AUTO -->
@@ -335,7 +324,7 @@
           <control type="toggle" />
         </setting>
       </group>
-      <group id="5" label="14232">
+      <group id="4" label="14232">
         <setting id="videoplayer.stereoscopicplaybackmode" type="integer" label="36520" help="36537">
           <level>2</level>
           <default>0</default>
@@ -355,7 +344,7 @@
           <control type="toggle" />
         </setting>
       </group>
-      <group id="6" label="14233">
+      <group id="5" label="14233">
         <setting id="videoplayer.teletextenabled" type="boolean" label="23050" help="36174">
           <level>3</level>
           <default>true</default>
@@ -622,6 +611,11 @@
           <default>false</default>
           <control type="toggle" />
         </setting>
+        <setting id="slideshow.highqualitydownscaling" type="boolean" label="36619" help="36620">
+            <level>1</level>
+            <default>false</default>
+            <control type="toggle" />
+        </setting>
       </group>
     </category>
     <category id="language" label="14218" help="38106">
@@ -846,7 +840,71 @@
       </group>
     </category>
   </section>
-  <section id="library" label="14202" help="38101">
+  <section id="media" label="14211" help="38101">
+    <category id="library" label="14202" help="39004">
+      <group id="1" label="14226">
+        <setting id="source.videos" type="action" label="14242" help="39005">
+          <level>1</level>
+          <control type="button" format="action" />
+        </setting>
+        <setting id="source.music" type="action" label="14243" help="39006">
+          <level>1</level>
+          <control type="button" format="action" />
+        </setting>
+        <setting id="source.pictures" type="action" label="14244" help="39007">
+          <level>1</level>
+          <control type="button" format="action" />
+        </setting>
+      </group>
+      <group id="2" label="14236">
+        <setting id="videolibrary.updateonstartup" type="boolean" label="14245" help="36146">
+          <level>1</level>
+          <default>false</default>
+          <control type="toggle" />
+        </setting>
+        <setting id="videolibrary.backgroundupdate" type="boolean" label="14246" help="36147">
+          <level>1</level>
+          <default>false</default>
+          <control type="toggle" />
+        </setting>
+        <setting id="videolibrary.cleanup" type="action" label="14247" help="36148">
+          <level>2</level>
+          <control type="button" format="action" />
+        </setting>
+        <setting id="videolibrary.export" type="action" label="14248" help="36149">
+          <level>2</level>
+          <control type="button" format="action" />
+        </setting>
+        <setting id="videolibrary.import" type="action" label="14249" help="36150">
+          <level>2</level>
+          <control type="button" format="action" />
+        </setting>
+      </group>
+      <group id="3" label="14237">
+        <setting id="musiclibrary.updateonstartup" type="boolean" label="14245" help="36259">
+          <level>1</level>
+          <default>false</default>
+          <control type="toggle" />
+        </setting>
+        <setting id="musiclibrary.backgroundupdate" type="boolean" label="14246" help="36147">
+          <level>1</level>
+          <default>false</default>
+          <control type="toggle" />
+        </setting>
+        <setting id="musiclibrary.cleanup" type="action" label="14247" help="36148">
+          <level>2</level>
+          <control type="button" format="action" />
+        </setting>
+        <setting id="musiclibrary.export" type="action" label="14248" help="36262">
+          <level>2</level>
+          <control type="button" format="action" />
+        </setting>
+        <setting id="musiclibrary.import" type="action" label="14249" help="36263">
+          <level>2</level>
+          <control type="button" format="action" />
+        </setting>
+      </group>
+    </category>
     <category id="filelists" label="16000" help="36121">
       <group id="1" label="593">
         <setting id="filelists.showparentdiritems" type="boolean" label="13306" help="36122">
@@ -858,7 +916,7 @@
           <level>1</level>
           <default>true</default>
           <control type="toggle" />
-        </setting>		
+        </setting>
       </group>
       <group id="2" label="744">
         <setting id="filelists.showextensions" type="boolean" label="497" help="36123">
@@ -900,7 +958,7 @@
       </group>
     </category>
     <category id="video" label="14215" help="38107">
-	  <group id="1" label="593">
+      <group id="1" label="593">
         <setting id="myvideos.selectaction" type="integer" label="22079" help="36177">
           <level>0</level>
           <default>1</default> <!-- SELECT_ACTION_PLAY_OR_RESUME -->
@@ -929,8 +987,8 @@
           <default>true</default>
           <control type="toggle" />
         </setting>
-      </group>		
-	  <group id="2" label="744">
+      </group>
+      <group id="2" label="744">
         <setting id="myvideos.stackvideos" type="boolean" label="20435" help="36182">
           <level>1</level>
           <default>false</default>
@@ -941,7 +999,7 @@
           <default>true</default>
           <control type="toggle" />
         </setting>
-      </group>	
+      </group>
       <group id="3" label="14022">
         <setting id="videolibrary.showallitems" type="boolean" label="38011" help="38012">
           <level>2</level>
@@ -951,6 +1009,16 @@
         <setting id="videolibrary.showunwatchedplots" type="boolean" label="20369" help="36141">
           <level>0</level>
           <default>true</default>
+          <control type="toggle" />
+        </setting>
+        <setting id="videolibrary.groupmoviesets" type="boolean" label="20458" help="36145">
+          <level>1</level>
+          <default>false</default>
+          <control type="toggle" />
+        </setting>
+        <setting id="videolibrary.groupsingleitemsets" type="boolean" parent="videolibrary.groupmoviesets" label="20470" help="36157">
+          <level>1</level>
+          <default>false</default>
           <control type="toggle" />
         </setting>
         <setting id="myvideos.flatten" type="boolean" label="20456" help="36183">
@@ -1003,23 +1071,13 @@
           </dependencies>
           <control type="spinner" format="string" />
         </setting>
-        <setting id="videolibrary.groupmoviesets" type="boolean" label="20458" help="36145">
-          <level>1</level>
-          <default>false</default>
-          <control type="toggle" />
-        </setting>
-        <setting id="videolibrary.groupsingleitemsets" type="boolean" label="20470" help="36157">
-          <level>1</level>
-          <default>false</default>
-          <control type="toggle" />
-        </setting>
         <setting id="videolibrary.actorthumbs" type="boolean" label="20402" help="36143">
           <level>2</level>
           <default>true</default>
           <control type="toggle" />
         </setting>
       </group>
-    </category>	
+    </category>
     <category id="music" label="14216" help="38108">
       <group id="1" label="593">
         <setting id="musicfiles.trackformat" type="string" label="13307" help="36275">
@@ -1054,13 +1112,13 @@
           <default>true</default>
           <control type="toggle" />
         </setting>
-      </group>  
+      </group>
       <group id="2" label="744">
         <setting id="musicfiles.usetags" type="boolean" label="258" help="36274">
           <level>1</level>
           <default>true</default>
           <control type="toggle" />
-        </setting>	  
+        </setting>
       </group>
       <group id="3" label="14022">
         <setting id="musiclibrary.showallitems" type="boolean" label="38011" help="38012">
@@ -1140,56 +1198,6 @@
             <options>resolutions</options>
           </constraints>
           <control type="spinner" format="string" />
-        </setting>
-      </group>
-    </category>
-    <category id="databases" label="14219" help="38110">
-      <group id="1" label="14215">
-        <setting id="videolibrary.updateonstartup" type="boolean" label="14245" help="36146">
-          <level>1</level>
-          <default>false</default>
-          <control type="toggle" />
-        </setting>
-        <setting id="videolibrary.backgroundupdate" type="boolean" label="14246" help="36147">
-          <level>1</level>
-          <default>false</default>
-          <control type="toggle" />
-        </setting>
-        <setting id="videolibrary.cleanup" type="action" label="14247" help="36148">
-          <level>2</level>
-          <control type="button" format="action" />
-        </setting>
-        <setting id="videolibrary.export" type="action" label="14248" help="36149">
-          <level>2</level>
-          <control type="button" format="action" />
-        </setting>
-        <setting id="videolibrary.import" type="action" label="14249" help="36150">
-          <level>2</level>
-          <control type="button" format="action" />
-        </setting>
-      </group>
-      <group id="2" label="14216">
-        <setting id="musiclibrary.updateonstartup" type="boolean" label="14245" help="36259">
-          <level>1</level>
-          <default>false</default>
-          <control type="toggle" />
-        </setting>
-        <setting id="musiclibrary.backgroundupdate" type="boolean" label="14246" help="36147">
-          <level>1</level>
-          <default>false</default>
-          <control type="toggle" />
-        </setting>
-        <setting id="musiclibrary.cleanup" type="action" label="14247" help="36148">
-          <level>2</level>
-          <control type="button" format="action" />
-        </setting>
-        <setting id="musiclibrary.export" type="action" label="14248" help="36262">
-          <level>2</level>
-          <control type="button" format="action" />
-        </setting>
-        <setting id="musiclibrary.import" type="action" label="14249" help="36263">
-          <level>2</level>
-          <control type="button" format="action" />
         </setting>
       </group>
     </category>
@@ -1469,11 +1477,6 @@
             <dependency type="enable" setting="pvrplayback.trafficadvisory">true</dependency>
           </dependencies>
         </setting>
-        <setting id="pvrplayback.sendrdstrafficmsg" type="boolean" label="29986" help="29987">
-          <level>2</level>
-          <default>false</default>
-          <control type="toggle" />
-        </setting>
       </group>
     </category>
     <category id="pvrrecord" label="19043" help="36233">
@@ -1555,6 +1558,10 @@
           <level>2</level>
           <default>true</default>
           <control type="toggle" />
+        </setting>
+        <setting id="pvrrecord.grouprecordings" type="boolean" label="" help="">
+          <default>true</default>
+          <level>4</level>
         </setting>
       </group>
     </category>
@@ -1688,7 +1695,7 @@
           <default>Kodi</default>
           <control type="edit" format="string" />
         </setting>
-      </group>		
+      </group>
       <group id="2" label="1259">
       <requirement>HAS_ZEROCONF</requirement>
         <setting id="services.zeroconf" type="boolean" label="1260" help="36342">
@@ -1698,48 +1705,9 @@
         </setting>
       </group>
     </category>
-    <category id="upnp" label="20187" help="36322">
-      <requirement>HAS_UPNP</requirement>
-      <group id="1" label="16000">
-        <setting id="services.upnpserver" type="boolean" label="21360" help="36323">
-          <level>0</level>
-          <default>false</default>
-          <control type="toggle" />
-        </setting>
-        <setting id="services.upnpannounce" type="boolean" parent="services.upnpserver" label="20188" help="36324">
-          <level>2</level>
-          <default>true</default>
-          <dependencies>
-            <dependency type="enable" setting="services.upnpserver">true</dependency>
-          </dependencies>
-          <control type="toggle" />
-        </setting>
-        <setting id="services.upnplookforexternalsubtitles" type="boolean" parent="services.upnpserver" label="20222" help="36420">
-          <level>2</level>
-          <default>false</default>
-          <dependencies>
-            <dependency type="enable" setting="services.upnpserver">true</dependency>
-          </dependencies>
-          <control type="toggle" />
-        </setting>
-        <setting id="services.upnpcontroller" type="boolean" parent="services.upnpserver" label="21361" help="36326">
-          <level>2</level>
-          <default>false</default>
-          <dependencies>
-            <dependency type="enable" setting="services.upnpserver">true</dependency>
-          </dependencies>
-          <control type="toggle" />
-        </setting>
-        <setting id="services.upnprenderer" type="boolean" label="21881" help="36325">
-          <level>1</level>
-          <default>false</default>
-          <control type="toggle" />
-        </setting>
-      </group>
-    </category>
-    <category id="webserver" label="33101" help="36327">
+    <category id="control" label="14223" help="36327">
+      <group id="1" label="33101">
       <requirement>HAS_WEB_SERVER</requirement>
-      <group id="1">
         <setting id="services.webserver" type="boolean" label="263" help="36328">
           <level>1</level>
           <default>false</default>
@@ -1794,6 +1762,138 @@
           <control type="button" format="addon">
             <show more="true" details="true">installed</show>
           </control>
+        </setting>
+      </group>
+      <group id="2" label="14275">
+      <requirement>
+        <or>
+          <condition>HAS_EVENT_SERVER</condition>
+          <condition>HAS_JSONRPC</condition>
+        </or>
+      </requirement>
+        <setting id="services.esenabled" type="boolean" label="14276" help="36334">
+          <level>1</level>
+          <default>true</default>
+          <control type="toggle" />
+        </setting>
+        <setting id="services.esport" type="integer" label="792" help="36335">
+          <requirement>HAS_EVENT_SERVER</requirement>
+          <level>4</level>
+          <default>9777</default>
+          <constraints>
+            <minimum>1</minimum>
+            <step>1</step>
+            <maximum>65535</maximum>
+          </constraints>
+          <dependencies>
+            <dependency type="enable" setting="services.esenabled">true</dependency>
+          </dependencies>
+          <control type="edit" format="integer" />
+        </setting>
+        <setting id="services.esportrange" type="integer" label="793" help="36336">
+          <requirement>HAS_EVENT_SERVER</requirement>
+          <level>4</level>
+          <default>10</default>
+          <constraints>
+            <minimum>1</minimum>
+            <step>1</step>
+            <maximum>100</maximum>
+          </constraints>
+          <dependencies>
+            <dependency type="enable" setting="services.esenabled">true</dependency>
+          </dependencies>
+          <control type="spinner" format="integer" />
+        </setting>
+        <setting id="services.esmaxclients" type="integer" label="797" help="36337">
+          <requirement>HAS_EVENT_SERVER</requirement>
+          <level>4</level>
+          <default>20</default>
+          <constraints>
+            <minimum>1</minimum>
+            <step>1</step>
+            <maximum>100</maximum>
+          </constraints>
+          <dependencies>
+            <dependency type="enable" setting="services.esenabled">true</dependency>
+          </dependencies>
+          <control type="spinner" format="integer" />
+        </setting>
+        <setting id="services.esallinterfaces" type="boolean" label="14277" help="36338">
+          <level>1</level>
+          <default>false</default>
+          <dependencies>
+            <dependency type="enable">
+                <condition setting="services.esenabled" operator="is">true</condition>
+            </dependency>
+          </dependencies>
+          <control type="toggle" />
+        </setting>
+        <setting id="services.esinitialdelay" type="integer" label="795" help="36339">
+          <requirement>HAS_EVENT_SERVER</requirement>
+          <level>4</level>
+          <default>750</default>
+          <constraints>
+            <minimum>5</minimum>
+            <step>5</step>
+            <maximum>10000</maximum>
+          </constraints>
+          <dependencies>
+            <dependency type="enable" setting="services.esenabled">true</dependency>
+          </dependencies>
+          <control type="spinner" format="integer" />
+        </setting>
+        <setting id="services.escontinuousdelay" type="integer" label="796" help="36340">
+          <requirement>HAS_EVENT_SERVER</requirement>
+          <level>4</level>
+          <default>25</default>
+          <constraints>
+            <minimum>5</minimum>
+            <step>5</step>
+            <maximum>10000</maximum>
+          </constraints>
+          <dependencies>
+            <dependency type="enable" setting="services.esenabled">true</dependency>
+          </dependencies>
+          <control type="spinner" format="integer" />
+        </setting>
+      </group>
+    </category>
+    <category id="upnp" label="20187" help="36322">
+      <requirement>HAS_UPNP</requirement>
+      <group id="1" label="16000">
+        <setting id="services.upnpserver" type="boolean" label="21360" help="36323">
+          <level>0</level>
+          <default>false</default>
+          <control type="toggle" />
+        </setting>
+        <setting id="services.upnpannounce" type="boolean" parent="services.upnpserver" label="20188" help="36324">
+          <level>2</level>
+          <default>true</default>
+          <dependencies>
+            <dependency type="enable" setting="services.upnpserver">true</dependency>
+          </dependencies>
+          <control type="toggle" />
+        </setting>
+        <setting id="services.upnplookforexternalsubtitles" type="boolean" parent="services.upnpserver" label="20222" help="36420">
+          <level>2</level>
+          <default>false</default>
+          <dependencies>
+            <dependency type="enable" setting="services.upnpserver">true</dependency>
+          </dependencies>
+          <control type="toggle" />
+        </setting>
+        <setting id="services.upnpcontroller" type="boolean" parent="services.upnpserver" label="21361" help="36326">
+          <level>2</level>
+          <default>false</default>
+          <dependencies>
+            <dependency type="enable" setting="services.upnpserver">true</dependency>
+          </dependencies>
+          <control type="toggle" />
+        </setting>
+        <setting id="services.upnprenderer" type="boolean" label="21881" help="36325">
+          <level>1</level>
+          <default>false</default>
+          <control type="toggle" />
         </setting>
       </group>
     </category>
@@ -1999,6 +2099,149 @@
           </dependencies>
           <control type="spinner" format="integer" />
         </setting>
+        <setting id="videoscreen.cmsenabled" type="boolean" label="36560" help="36561">
+          <requirement>HAS_GL</requirement>
+          <level>3</level>
+          <default>false</default>
+          <control type="toggle" />
+        </setting>
+        <setting id="videoscreen.cmsmode" type="integer" label="36562" help="36563">
+          <requirement>HAS_GL</requirement>
+          <level>3</level>
+          <default>0</default>
+          <constraints>
+            <options>cmsmodes</options>
+          </constraints>
+          <dependencies>
+            <dependency type="visible" setting="videoscreen.cmsenabled" operator="is">true</dependency>
+          </dependencies>
+          <control type="list" format="integer"/>
+        </setting>
+        <setting id="videoscreen.cms3dlut" type="string" label="36564" help="36565">
+          <requirement>
+            <and>
+              <condition>HAS_GL</condition>
+            </and>
+          </requirement>
+          <level>3</level>
+          <default></default>
+          <constraints>
+            <allowempty>true</allowempty>
+          </constraints>
+          <dependencies>
+            <dependency type="visible" setting="videoscreen.cmsenabled" operator="is">true</dependency>
+            <dependency type="visible" setting="videoscreen.cmsmode" operator="is">0</dependency>
+          </dependencies>
+          <control type="button" format="action" />
+        </setting>
+        <setting id="videoscreen.displayprofile" type="string" label="36566" help="36567">
+          <requirement>
+            <and>
+              <condition>HAS_GL</condition>
+              <condition>HAVE_LCMS2</condition>
+            </and>
+          </requirement>
+          <level>3</level>
+          <default></default>
+          <constraints>
+            <allowempty>true</allowempty>
+          </constraints>
+          <dependencies>
+            <dependency type="visible" setting="videoscreen.cmsenabled" operator="is">true</dependency>
+            <dependency type="visible" setting="videoscreen.cmsmode" operator="is">1</dependency>
+          </dependencies>
+          <control type="button" format="action" />
+        </setting>
+        <setting id="videoscreen.cmswhitepoint" type="integer" label="36568" help="36569">
+          <requirement>
+            <and>
+              <condition>HAS_GL</condition>
+              <condition>HAVE_LCMS2</condition>
+            </and>
+          </requirement>
+          <level>3</level>
+          <default>0</default>
+          <constraints>
+            <options>cmswhitepoints</options>
+          </constraints>
+          <dependencies>
+            <dependency type="visible" setting="videoscreen.cmsenabled" operator="is">true</dependency>
+            <dependency type="visible" setting="videoscreen.cmsmode" operator="is">1</dependency>
+          </dependencies>
+          <control type="list" format="integer"/>
+        </setting>
+        <setting id="videoscreen.cmsprimaries" type="integer" label="36570" help="36571">
+          <requirement>
+            <and>
+              <condition>HAS_GL</condition>
+              <condition>HAVE_LCMS2</condition>
+            </and>
+          </requirement>
+          <level>3</level>
+          <default>0</default>
+          <constraints>
+            <options>cmsprimaries</options>
+          </constraints>
+          <dependencies>
+            <dependency type="visible" setting="videoscreen.cmsenabled" operator="is">true</dependency>
+            <dependency type="visible" setting="videoscreen.cmsmode" operator="is">1</dependency>
+          </dependencies>
+          <control type="list" format="integer"/>
+        </setting>
+        <setting id="videoscreen.cmsgammamode" type="integer" label="36572" help="36573">
+          <requirement>
+            <and>
+              <condition>HAS_GL</condition>
+              <condition>HAVE_LCMS2</condition>
+            </and>
+          </requirement>
+          <level>3</level>
+          <default>0</default>
+          <constraints>
+            <options>cmsgammamodes</options>
+          </constraints>
+          <dependencies>
+            <dependency type="visible" setting="videoscreen.cmsenabled" operator="is">true</dependency>
+            <dependency type="visible" setting="videoscreen.cmsmode" operator="is">1</dependency>
+          </dependencies>
+          <control type="list" format="integer"/>
+        </setting>
+        <setting id="videoscreen.cmsgamma" type="integer" label="36574" help="36575">
+          <requirement>
+            <and>
+              <condition>HAS_GL</condition>
+              <condition>HAVE_LCMS2</condition>
+            </and>
+          </requirement>
+          <level>3</level>
+          <default>220</default>
+          <constraints>
+            <minimum>160</minimum>
+            <step>005</step>
+            <maximum>280</maximum>
+          </constraints>
+          <dependencies>
+            <dependency type="visible" setting="videoscreen.cmsenabled" operator="is">true</dependency>
+            <dependency type="visible" setting="videoscreen.cmsmode" operator="is">1</dependency>
+            <dependency type="visible" setting="videoscreen.cmsgammamode" operator="!is">0</dependency>
+          </dependencies>
+          <control type="spinner" format="integer" />
+        </setting>
+        <setting id="videoscreen.cmslutsize" type="integer" label="36576" help="36577">
+          <requirement>HAS_GL</requirement>
+          <level>3</level>
+          <default>6</default>
+          <constraints>
+            <minimum>4</minimum>
+            <step>1</step>
+            <maximum>8</maximum>
+          </constraints>
+          <dependencies>
+            <dependency type="visible" setting="videoscreen.cmsenabled" operator="is">true</dependency>
+            <dependency type="visible" setting="videoscreen.cmsmode" operator="is">1</dependency>
+          </dependencies>
+          <control type="spinner" format="integer" />
+        </setting>
       </group>
       <group id="2" label="14232">
         <setting id="videoscreen.stereoscopicmode" type="integer" label="36500" help="36539">
@@ -2127,6 +2370,16 @@
           </constraints>
           <control type="list" format="string" />
         </setting>
+        <setting id="audiooutput.atempothreshold" type="integer" label="13517" help="13518">
+          <level>3</level>
+          <default>2</default> <!-- 2% -->
+          <constraints>
+            <minimum>0</minimum>
+            <step>1</step>
+            <maximum>100</maximum>
+          </constraints>
+          <control type="edit" format="integer" />
+        </setting>
         <setting id="audiooutput.samplerate" type="integer" label="458" help="36523">
           <level>2</level>
           <default>48000</default>
@@ -2157,6 +2410,13 @@
           </constraints>
           <control type="list" format="string" />
         </setting>
+        <setting id="audiooutput.streamnoise" type="boolean" label="34112" help="34113">
+          <level>2</level>
+          <default>true</default>
+          <control type="toggle" />
+        </setting>
+      </group>
+      <group id="2" label="15108">
         <setting id="audiooutput.guisoundmode" type="integer" label="34120" help="36373">
           <level>0</level>
           <default>1</default> <!-- AE_SOUND_IDLE -->
@@ -2169,42 +2429,19 @@
           </constraints>
           <control type="list" format="string" />
         </setting>
-      </group>
-      <group id="2" label="14251">
-        <setting id="audiooutput.dspaddonsenabled" type="boolean" label="36441" help="36438">
-          <level>3</level>
-          <default>false</default>
-          <dependencies>
-            <dependency type="visible">
-              <or>
-                <condition on="property" name="aesettingvisible" setting="audiooutput.passthrough">audiooutput.dspaddonsenabled</condition>
-                <condition on="property" name="aesettingvisible" setting="audiooutput.ac3passthrough">audiooutput.dspaddonsenabled</condition>
-              </or>
-            </dependency>
-          </dependencies>
-          <control type="toggle" />
-        </setting>
-        <setting id="audiooutput.dspsettings" type="action" label="36436" help="36437">
-          <level>3</level>
-          <control type="button" format="action" />
-          <dependencies>
-            <dependency type="visible">
-              <or>
-                <condition on="property" name="aesettingvisible" setting="audiooutput.dspaddonsenabled">audiooutput.dspsettings</condition>
-              </or>
-            </dependency>
-          </dependencies>
-        </setting>
-        <setting id="audiooutput.dspresetdb" type="action" label="14082" help="36439">
-          <level>3</level>
-          <control type="button" format="action" />
-          <dependencies>
-            <dependency type="visible">
-              <or>
-                <condition on="property" name="aesettingvisible" setting="audiooutput.dspaddonsenabled">audiooutput.dspresetdb</condition>
-              </or>
-            </dependency>
-          </dependencies>
+        <setting id="lookandfeel.soundskin" type="addon" label="24006" help="36110">
+          <level>0</level>
+          <default>resource.uisounds.kodi</default>
+          <constraints>
+            <addontype>kodi.resource.uisounds</addontype>
+            <allowempty>true</allowempty>
+          </constraints>
+          <updates>
+            <update type="change" />
+          </updates>
+          <control type="button" format="addon">
+            <show more="true" details="true">installed</show>
+          </control>
         </setting>
       </group>
       <group id="3" label="14252">
@@ -2284,7 +2521,12 @@
           <level>2</level>
           <default>false</default>
           <dependencies>
-            <dependency type="visible" on="property" name="aesettingvisible" setting="audiooutput.config">audiooutput.passthrough</dependency>
+            <dependency type="visible">
+              <and>
+                <condition on="property" name="aesettingvisible" setting="audiooutput.config">audiooutput.dtspassthrough</condition>
+                <condition on="property" name="aesettingvisible" setting="audiooutput.passthroughdevice">audiooutput.dtspassthrough</condition>
+              </and>
+            </dependency>
             <dependency type="enable" setting="audiooutput.passthrough" operator="is">true</dependency>
           </dependencies>
           <control type="toggle" />
@@ -2314,6 +2556,83 @@
               </and>
             </dependency>
             <dependency type="enable" setting="audiooutput.passthrough" operator="is">true</dependency>
+          </dependencies>
+          <control type="toggle" />
+        </setting>
+      </group>
+      <group id="4" label="14251">
+        <setting id="audiooutput.dspaddonsenabled" type="boolean" label="36441" help="36438">
+          <level>3</level>
+          <default>false</default>
+          <dependencies>
+            <dependency type="visible">
+              <or>
+                <condition on="property" name="aesettingvisible" setting="audiooutput.passthrough">audiooutput.dspaddonsenabled</condition>
+                <condition on="property" name="aesettingvisible" setting="audiooutput.ac3passthrough">audiooutput.dspaddonsenabled</condition>
+              </or>
+            </dependency>
+          </dependencies>
+          <control type="toggle" />
+        </setting>
+        <setting id="audiooutput.dspsettings" type="action" label="36436" help="36437">
+          <level>3</level>
+          <control type="button" format="action" />
+          <dependencies>
+            <dependency type="visible">
+              <or>
+                <condition on="property" name="aesettingvisible" setting="audiooutput.dspaddonsenabled">audiooutput.dspsettings</condition>
+              </or>
+            </dependency>
+          </dependencies>
+        </setting>
+        <setting id="audiooutput.dspresetdb" type="action" label="14082" help="36439">
+          <level>3</level>
+          <control type="button" format="action" />
+          <dependencies>
+            <dependency type="visible">
+              <or>
+                <condition on="property" name="aesettingvisible" setting="audiooutput.dspaddonsenabled">audiooutput.dspresetdb</condition>
+              </or>
+            </dependency>
+          </dependencies>
+        </setting>
+      </group>
+    </category>
+    <category id="input" label="14125" help="36374">
+      <group id="1" label="35000">
+        <setting id="input.peripherals" type="action" label="35000" help="36375">
+          <level>1</level>
+          <dependencies>
+            <dependency type="enable" on="property" name="HasPeripherals" />
+          </dependencies>
+          <control type="button" format="action" />
+        </setting>
+      </group>
+      <group id="2" label="14094">
+        <setting id="input.enablemouse" type="boolean" label="21369" help="36377">
+          <level>0</level>
+          <control type="toggle" />
+          <default>true</default>
+        </setting>
+        <setting id="input.controllerconfig" type="action" label="35063" help="35064">
+          <level>0</level>
+          <dependencies>
+            <dependency type="enable" on="property" name="SupportsPeripheralControllers" />
+          </dependencies>
+          <control type="button" format="action" />
+        </setting>
+        <setting id="input.testrumble" type="action" label="35051" help="35052">
+          <level>2</level>
+          <dependencies>
+            <dependency type="enable" on="property" name="HasRumbleFeature" />
+          </dependencies>
+          <control type="button" format="action" />
+        </setting>
+        <setting id="input.controllerpoweroff" type="boolean" label="35088" help="35089">
+          <level>0</level>
+          <default>false</default>
+          <dependencies>
+            <dependency type="enable" on="property" name="SupportsPeripheralControllers" />
           </dependencies>
           <control type="toggle" />
         </setting>
@@ -2707,7 +3026,7 @@
   </section>
   <section id="interface" label="14206" help="38102">
     <category id="skin" label="166" help="36102">
-      <group id="1" label="16000">
+      <group id="1" label="24997">
         <setting id="lookandfeel.skin" type="addon" label="166" help="36103">
           <level>0</level>
           <default>skin.estuary</default>
@@ -2718,7 +3037,7 @@
             <show more="true" details="true">installed</show>
           </control>
         </setting>
-        <setting id="lookandfeel.skinsettings" type="action" parent="lookandfeel.skin" label="21417" help="36104">
+        <setting id="lookandfeel.skinsettings" type="action" parent="lookandfeel.skin" label="14261" help="36104">
           <level>0</level>
           <dependencies>
             <dependency type="enable" on="property" name="AddonHasSettings" setting="lookandfeel.skin" />
@@ -2737,7 +3056,7 @@
           <control type="list" format="string" />
         </setting>
         <setting id="lookandfeel.skincolors" type="string" parent="lookandfeel.skin" label="14078" help="36106">
-          <level>2</level>
+          <level>1</level>
           <default>SKINDEFAULT</default>
           <constraints>
             <options>skincolors</options>
@@ -2748,7 +3067,7 @@
           <control type="list" format="string" />
         </setting>
         <setting id="lookandfeel.font" type="string" parent="lookandfeel.skin" label="13303" help="36107">
-          <level>2</level>
+          <level>1</level>
           <default>Default</default>
           <constraints>
             <options>skinfonts</options>
@@ -2759,44 +3078,18 @@
           <control type="list" format="string" />
         </setting>
         <setting id="lookandfeel.skinzoom" type="integer" parent="lookandfeel.skin" label="20109" help="36108">
-          <level>2</level>
+          <level>1</level>
           <default>0</default>
           <constraints>
-            <minimum>-20</minimum>
+            <minimum>-30</minimum>
             <step>2</step>
-            <maximum>20</maximum>
+            <maximum>30</maximum>
           </constraints>
           <dependencies>
             <dependency type="update" setting="lookandfeel.skin" />
           </dependencies>
           <control type="spinner" format="string">
             <formatlabel>14047</formatlabel>
-          </control>
-        </setting>
-        <setting id="audiooutput.guisoundmode" type="integer" label="34120" help="36373">
-          <level>0</level>
-          <default>1</default> <!-- AE_SOUND_IDLE -->
-          <constraints>
-            <options>
-              <option label="34121">1</option> <!-- AE_SOUND_IDLE -->
-              <option label="34122">2</option> <!-- AE_SOUND_ALWAYS -->
-              <option label="34123">0</option> <!-- AE_SOUND_OFF -->
-            </options>
-          </constraints>
-          <control type="list" format="string" />
-        </setting>
-        <setting id="lookandfeel.soundskin" type="addon" label="15108" help="36110">
-          <level>0</level>
-          <default>resource.uisounds.confluence</default>
-          <constraints>
-            <addontype>kodi.resource.uisounds</addontype>
-            <allowempty>true</allowempty>
-          </constraints>
-          <updates>
-            <update type="change" />
-          </updates>
-          <control type="button" format="addon">
-            <show more="true" details="true">installed</show>
           </control>
         </setting>
         <setting id="lookandfeel.stereostrength" type="integer" label="36550" help="36551">
@@ -2951,122 +3244,6 @@
         </setting>
       </group>
     </category>
-    <category id="control" label="14223" help="36374">
-      <group id="1" label="35000">
-        <setting id="input.peripherals" type="action" label="35000" help="36375">
-          <level>2</level>
-          <dependencies>
-            <dependency type="enable" on="property" name="HasPeripherals" />
-          </dependencies>
-          <control type="button" format="action" />
-        </setting>
-      </group>
-      <group id="2" label="14094">
-        <setting id="input.enablemouse" type="boolean" label="21369" help="36377">
-          <level>0</level>
-          <control type="toggle" />
-          <default>true</default>
-        </setting>
-        <setting id="input.controllerconfig" type="action" label="35063" help="35064">
-          <level>0</level>
-          <dependencies>
-            <dependency type="enable" on="property" name="SupportsPeripheralControllers" />
-          </dependencies>
-          <control type="button" format="action" />
-        </setting>
-      </group>
-      <group id="3" label="14275">		
-      <requirement>
-          <or>
-          <condition>HAS_EVENT_SERVER</condition>
-          <condition>HAS_JSONRPC</condition>
-          </or>
-      </requirement>
-        <setting id="services.esenabled" type="boolean" label="14276" help="36334">
-          <level>1</level>
-          <default>true</default>
-          <control type="toggle" />
-        </setting>
-        <setting id="services.esport" type="integer" label="792" help="36335">
-          <requirement>HAS_EVENT_SERVER</requirement>
-          <level>4</level>
-          <default>9777</default>
-          <constraints>
-            <minimum>1</minimum>
-            <step>1</step>
-            <maximum>65535</maximum>
-          </constraints>
-          <dependencies>
-            <dependency type="enable" setting="services.esenabled">true</dependency>
-          </dependencies>
-          <control type="edit" format="integer" />
-        </setting>
-        <setting id="services.esportrange" type="integer" label="793" help="36336">
-          <requirement>HAS_EVENT_SERVER</requirement>
-          <level>4</level>
-          <default>10</default>
-          <constraints>
-            <minimum>1</minimum>
-            <step>1</step>
-            <maximum>100</maximum>
-          </constraints>
-          <dependencies>
-            <dependency type="enable" setting="services.esenabled">true</dependency>
-          </dependencies>
-          <control type="spinner" format="integer" />
-        </setting>
-        <setting id="services.esmaxclients" type="integer" label="797" help="36337">
-          <requirement>HAS_EVENT_SERVER</requirement>
-          <level>4</level>
-          <default>20</default>
-          <constraints>
-            <minimum>1</minimum>
-            <step>1</step>
-            <maximum>100</maximum>
-          </constraints>
-          <dependencies>
-            <dependency type="enable" setting="services.esenabled">true</dependency>
-          </dependencies>
-          <control type="spinner" format="integer" />
-        </setting>
-        <setting id="services.esallinterfaces" type="boolean" label="14277" help="36338">
-          <level>1</level>
-          <default>false</default>
-          <dependencies>
-            <dependency type="enable" setting="services.esenabled">true</dependency>
-          </dependencies>
-          <control type="toggle" />
-        </setting>
-        <setting id="services.esinitialdelay" type="integer" label="795" help="36339">
-          <requirement>HAS_EVENT_SERVER</requirement>
-          <level>4</level>
-          <default>750</default>
-          <constraints>
-            <minimum>5</minimum>
-            <step>5</step>
-            <maximum>10000</maximum>
-          </constraints>
-          <dependencies>
-            <dependency type="enable" setting="services.esenabled">true</dependency>
-          </dependencies>
-          <control type="spinner" format="integer" />
-        </setting>
-        <setting id="services.escontinuousdelay" type="integer" label="796" help="36340">
-          <requirement>HAS_EVENT_SERVER</requirement>
-          <level>4</level>
-          <default>25</default>
-          <constraints>
-            <minimum>5</minimum>
-            <step>5</step>
-            <maximum>10000</maximum>
-          </constraints>
-          <dependencies>
-            <dependency type="enable" setting="services.esenabled">true</dependency>
-          </dependencies>
-          <control type="spinner" format="integer" />
-        </setting>
-      </group>
-    </category>
     <category id="screensaver" label="360" help="36128">
       <group id="1" label="16000">
         <setting id="screensaver.mode" type="addon" label="356" help="36130">
@@ -3184,7 +3361,7 @@
         </setting>
         <setting id="lookandfeel.enablerssfeeds" type="boolean" label="13305" help="36111">
           <level>0</level>
-          <default>true</default>
+          <default>false</default>
           <control type="toggle" />
         </setting>
         <setting id="lookandfeel.rssedit" type="string" parent="lookandfeel.enablerssfeeds" label="21450" help="36112">

@@ -113,6 +113,12 @@ PlayBackRet CApplicationPlayer::OpenFile(const CFileItem& item, const CPlayerOpt
     // check whether the OpenFile was canceled by either CloseFile or another OpenFile.
     if (m_iPlayerOPSeq != startingSeq)
       iResult = PLAYBACK_CANCELED;
+
+    // reset caching timers
+    m_audioStreamUpdate.SetExpired();
+    m_videoStreamUpdate.SetExpired();
+    m_subtitleStreamUpdate.SetExpired();
+    m_speedUpdate.SetExpired();
   }
   return iResult;
 }
@@ -187,10 +193,9 @@ bool CApplicationPlayer::HasRDS() const
   return (player && player->HasRDS());
 }
 
-bool CApplicationPlayer::IsPaused() const
+bool CApplicationPlayer::IsPaused()
 {
-  std::shared_ptr<IPlayer> player = GetInternal();
-  return (player && player->IsPaused());
+  return (GetPlaySpeed() == 0);
 }
 
 bool CApplicationPlayer::IsPlaying() const
@@ -199,9 +204,9 @@ bool CApplicationPlayer::IsPlaying() const
   return (player && player->IsPlaying());
 }
 
-bool CApplicationPlayer::IsPausedPlayback() const
+bool CApplicationPlayer::IsPausedPlayback()
 {
-  return (IsPlaying() && IsPaused());
+  return (IsPlaying() && (GetPlaySpeed() == 0));
 }
 
 bool CApplicationPlayer::IsPlayingAudio() const
@@ -223,13 +228,10 @@ void CApplicationPlayer::Pause()
 {
   std::shared_ptr<IPlayer> player = GetInternal();
   if (player)
+  {
     player->Pause();
-}
-
-bool CApplicationPlayer::ControlsVolume() const
-{
-  std::shared_ptr<IPlayer> player = GetInternal();
-  return (player && player->ControlsVolume());
+    m_speedUpdate.SetExpired();
+  }
 }
 
 void CApplicationPlayer::SetMute(bool bOnOff)
@@ -454,11 +456,11 @@ float CApplicationPlayer::GetCachePercentage() const
     return 0.0;
 }
 
-void CApplicationPlayer::ToFFRW(int iSpeed)
+void CApplicationPlayer::SetSpeed(float speed)
 {
   std::shared_ptr<IPlayer> player = GetInternal();
   if (player)
-    player->ToFFRW(iSpeed);
+    player->SetSpeed(speed);
 }
 
 void CApplicationPlayer::DoAudioWork()
@@ -694,35 +696,7 @@ int  CApplicationPlayer::SeekChapter(int iChapter)
     return 0;
 }
 
-void CApplicationPlayer::GetRenderFeatures(std::vector<int> &renderFeatures)
-{
-  std::shared_ptr<IPlayer> player = GetInternal();
-  if (player)
-    player->OMXGetRenderFeatures(renderFeatures);
-}
-
-void CApplicationPlayer::GetDeinterlaceMethods(std::vector<int> &deinterlaceMethods)
-{
-  std::shared_ptr<IPlayer> player = GetInternal();
-  if (player)
-    player->OMXGetDeinterlaceMethods(deinterlaceMethods);
-}
-
-void CApplicationPlayer::GetDeinterlaceModes(std::vector<int> &deinterlaceModes)
-{
-  std::shared_ptr<IPlayer> player = GetInternal();
-  if (player)
-    player->OMXGetDeinterlaceModes(deinterlaceModes);
-}
-
-void CApplicationPlayer::GetScalingMethods(std::vector<int> &scalingMethods)
-{
-  std::shared_ptr<IPlayer> player = GetInternal();
-  if (player)
-    player->OMXGetScalingMethods(scalingMethods);
-}
-
-void CApplicationPlayer::SetPlaySpeed(int iSpeed, bool bApplicationMuted)
+void CApplicationPlayer::SetPlaySpeed(float speed)
 {
   std::shared_ptr<IPlayer> player = GetInternal();
   if (!player)
@@ -730,43 +704,34 @@ void CApplicationPlayer::SetPlaySpeed(int iSpeed, bool bApplicationMuted)
 
   if (!IsPlayingAudio() && !IsPlayingVideo())
     return ;
-  if (m_iPlaySpeed == iSpeed)
-    return ;
-  if (!CanSeek())
-    return;
-  if (IsPaused())
-  {
-    if (
-      ((m_iPlaySpeed > 1) && (iSpeed > m_iPlaySpeed)) ||
-      ((m_iPlaySpeed < -1) && (iSpeed < m_iPlaySpeed))
-    )
-    {
-      iSpeed = m_iPlaySpeed; // from pause to ff/rw, do previous ff/rw speed
-    }
-    Pause();
-  }
-  m_iPlaySpeed = iSpeed;
 
-  ToFFRW(m_iPlaySpeed);
-
-  // if player has volume control, set it.
-  if (ControlsVolume())
-  {
-    if (m_iPlaySpeed == 1)
-    { // restore volume
-      player->SetVolume(g_application.GetVolume(false));
-    }
-    else
-    { // mute volume
-      player->SetVolume(VOLUME_MINIMUM);
-    }
-    player->SetMute(bApplicationMuted);
-  }
+  SetSpeed(speed);
+  m_speedUpdate.SetExpired();
 }
 
-int CApplicationPlayer::GetPlaySpeed() const
+float CApplicationPlayer::GetPlaySpeed()
 {
-  return m_iPlaySpeed;
+  if (!m_speedUpdate.IsTimePast())
+    return m_fPlaySpeed;
+
+  std::shared_ptr<IPlayer> player = GetInternal();
+  if (player)
+  {
+    m_fPlaySpeed = player->GetSpeed();
+    m_speedUpdate.Set(1000);
+    return m_fPlaySpeed;
+  }
+  else
+    return 0;
+}
+
+bool CApplicationPlayer::SupportsTempo()
+{
+  std::shared_ptr<IPlayer> player = GetInternal();
+  if (player)
+    return player->SupportsTempo();
+  else
+    return false;
 }
 
 void CApplicationPlayer::FrameMove()
@@ -774,15 +739,6 @@ void CApplicationPlayer::FrameMove()
   std::shared_ptr<IPlayer> player = GetInternal();
   if (player)
     player->FrameMove();
-}
-
-bool CApplicationPlayer::HasFrame()
-{
-  std::shared_ptr<IPlayer> player = GetInternal();
-  if (player)
-    return player->HasFrame();
-  else
-    return false;
 }
 
 void CApplicationPlayer::Render(bool clear, uint32_t alpha, bool gui)
@@ -849,15 +805,6 @@ bool CApplicationPlayer::IsRenderingVideoLayer()
     return false;
 }
 
-bool CApplicationPlayer::Supports(EDEINTERLACEMODE mode)
-{
-  std::shared_ptr<IPlayer> player = GetInternal();
-  if (player)
-    return player->Supports(mode);
-  else
-    return false;
-}
-
 bool CApplicationPlayer::Supports(EINTERLACEMETHOD method)
 {
   std::shared_ptr<IPlayer> player = GetInternal();
@@ -865,6 +812,15 @@ bool CApplicationPlayer::Supports(EINTERLACEMETHOD method)
     return player->Supports(method);
   else
     return false;
+}
+
+EINTERLACEMETHOD CApplicationPlayer::GetDeinterlacingMethodDefault()
+{
+  std::shared_ptr<IPlayer> player = GetInternal();
+  if (player)
+    return player->GetDeinterlacingMethodDefault();
+  else
+    return EINTERLACEMETHOD::VS_INTERLACEMETHOD_NONE;
 }
 
 bool CApplicationPlayer::Supports(ESCALINGMETHOD method)

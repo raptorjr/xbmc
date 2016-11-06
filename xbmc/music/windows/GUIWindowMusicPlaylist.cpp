@@ -108,7 +108,7 @@ bool CGUIWindowMusicPlayList::OnMessage(CGUIMessage& message)
   case GUI_MSG_WINDOW_INIT:
     {
       // Setup item cache for tagloader
-      m_musicInfoLoader.UseCacheOnHD("special://temp/MusicPlaylist.fi");
+      m_musicInfoLoader.UseCacheOnHD("special://temp/archive_cache/MusicPlaylist.fi");
 
       m_vecItems->SetPath("playlistmusic://");
 
@@ -287,10 +287,12 @@ void CGUIWindowMusicPlayList::SavePlayList()
   if (CGUIKeyboardFactory::ShowAndGetInput(strNewFileName, CVariant{g_localizeStrings.Get(16012)}, false))
   {
     // need 2 rename it
-    std::string strFolder = URIUtils::AddFileToFolder(CSettings::GetInstance().GetString(CSettings::SETTING_SYSTEM_PLAYLISTSPATH), "music");
     strNewFileName = CUtil::MakeLegalFileName(strNewFileName);
     strNewFileName += ".m3u";
-    std::string strPath = URIUtils::AddFileToFolder(strFolder, strNewFileName);
+    std::string strPath = URIUtils::AddFileToFolder(
+      CSettings::GetInstance().GetString(CSettings::SETTING_SYSTEM_PLAYLISTSPATH),
+      "music",
+      strNewFileName);
 
     // get selected item
     int iItem = m_viewControl.GetSelectedItem();

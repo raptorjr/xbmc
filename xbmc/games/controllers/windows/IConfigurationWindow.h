@@ -88,6 +88,12 @@ namespace GAME
     virtual void OnSelect(unsigned int controllerIndex) = 0;
 
     /*!
+     * \brief Get the index of the focused controller
+     * \return The index of the focused controller, or -1 if no controller has been focused yet
+     */
+    virtual int GetFocusedController() const = 0;
+
+    /*!
      * \brief Reset the focused controller
      */
     virtual void ResetController(void) = 0;
@@ -167,7 +173,7 @@ namespace GAME
      * \return The next direction to be prompted, or UNKNOWN if this isn't an
      *         analog stick or the prompt is finished
      */
-    virtual JOYSTICK::CARDINAL_DIRECTION GetDirection(void) const = 0;
+    virtual JOYSTICK::ANALOG_STICK_DIRECTION GetDirection(void) const = 0;
 
     /*!
      * \brief Reset button after prompting for input has finished

@@ -22,10 +22,12 @@
 
 #include <string>
 #include <vector>
-
-#include "addons/Addon.h"
-#include "windows/GUIMediaWindow.h"
+#include "Addon.h"
+#include "AddonEvents.h"
+#include "RepositoryUpdater.h"
 #include "ThumbLoader.h"
+#include "windows/GUIMediaWindow.h"
+
 
 class CFileItem;
 class CFileItemList;
@@ -62,6 +64,8 @@ public:
    */
   static int SelectAddonID(ADDON::TYPE type, std::vector<std::string> &addonIDs, bool showNone = false, bool showDetails = true, bool multipleSelection = true, bool showInstalled = true, bool showInstallable = false, bool showMore = true);
   static int SelectAddonID(const std::vector<ADDON::TYPE> &types, std::vector<std::string> &addonIDs, bool showNone = false, bool showDetails = true, bool multipleSelection = true, bool showInstalled = true, bool showInstallable = false, bool showMore = true);
+
+  bool UseFileDirectories() override { return false; }
   
 protected:
   virtual bool OnClick(int iItem, const std::string &player = "") override;
@@ -75,6 +79,8 @@ protected:
 private:
   void SetProperties();
   void UpdateStatus(const CFileItemPtr& item);
+  void OnEvent(const ADDON::CRepositoryUpdater::RepositoryUpdated& event);
+  void OnEvent(const ADDON::AddonEvent& event);
   CProgramThumbLoader m_thumbLoader;
 };
 

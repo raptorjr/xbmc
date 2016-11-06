@@ -5,7 +5,7 @@ function(core_link_library lib wraplib)
   set(check_arg "")
   if(TARGET ${lib})
     set(target ${lib})
-    set(link_lib ${CMAKE_BINARY_DIR}/${CORE_BUILD_DIR}/${lib}/${lib}.a)
+    set(link_lib $<TARGET_FILE:${lib}>)
     set(check_arg ${ARGV2})
     set(data_arg  ${ARGV3})
   else()
@@ -14,28 +14,41 @@ function(core_link_library lib wraplib)
     set(check_arg ${ARGV3})
     set(data_arg ${ARGV4})
   endif()
+
+  # wrapper has to be adapted in order to support coverage.
+  if(CMAKE_BUILD_TYPE STREQUAL Coverage)
+    set(export "")
+  endif()
+
   if(check_arg STREQUAL export)
-    set(export ${export} 
+    set(export ${export}
         -Wl,--version-script=${ARGV3})
-  elseif(check_arg STREQUAL nowrap)
-    set(export ${data_arg})
   elseif(check_arg STREQUAL extras)
     foreach(arg ${data_arg})
       list(APPEND export ${arg})
     endforeach()
+  elseif(check_arg STREQUAL archives)
+    set(extra_libs ${data_arg})
   endif()
-  get_filename_component(dir ${wraplib} PATH)
-  add_custom_command(OUTPUT ${wraplib}-${ARCH}${CMAKE_SHARED_MODULE_SUFFIX}
-                     COMMAND cmake -E make_directory ${dir}
+
+  get_filename_component(dir ${wraplib} DIRECTORY)
+  add_custom_command(OUTPUT ${CMAKE_BINARY_DIR}/${wraplib}-${ARCH}${CMAKE_SHARED_MODULE_SUFFIX}
+                     COMMAND ${CMAKE_COMMAND} -E make_directory ${dir}
                      COMMAND ${CMAKE_C_COMPILER}
                      ARGS    -Wl,--whole-archive
-                             ${link_lib}
+                             "${link_lib}" ${extra_libs}
                              -Wl,--no-whole-archive -lm
+                             -Wl,-soname,${wraplib}-${ARCH}${CMAKE_SHARED_MODULE_SUFFIX}
                              -shared -o ${CMAKE_BINARY_DIR}/${wraplib}-${ARCH}${CMAKE_SHARED_MODULE_SUFFIX}
                              ${export}
                      DEPENDS ${target} wrapper.def wrapper)
-  list(APPEND WRAP_FILES ${wraplib}-${ARCH}${CMAKE_SHARED_MODULE_SUFFIX})
-  set(WRAP_FILES ${WRAP_FILES} PARENT_SCOPE)
+
+  get_filename_component(libname ${wraplib} NAME_WE)
+  add_custom_target(wrap_${libname} ALL DEPENDS ${CMAKE_BINARY_DIR}/${wraplib}-${ARCH}${CMAKE_SHARED_MODULE_SUFFIX})
+  set_target_properties(wrap_${libname} PROPERTIES FOLDER lib/wrapped)
+  add_dependencies(${APP_NAME_LC}-libraries wrap_${libname})
+
+  set(LIBRARY_FILES ${LIBRARY_FILES} ${CMAKE_BINARY_DIR}/${wraplib}-${ARCH}${CMAKE_SHARED_MODULE_SUFFIX} CACHE STRING "" FORCE)
 endfunction()
 
 function(find_soname lib)
@@ -70,7 +83,9 @@ function(find_soname lib)
                     OUTPUT_VARIABLE ${lib}_SONAME)
     string(REPLACE "SONAME " "" ${lib}_SONAME ${${lib}_SONAME})
     string(STRIP ${${lib}_SONAME} ${lib}_SONAME)
-    message(STATUS "${lib} soname: ${${lib}_SONAME}")
+    if(VERBOSE)
+      message(STATUS "${lib} soname: ${${lib}_SONAME}")
+    endif()
     set(${lib}_SONAME ${${lib}_SONAME} PARENT_SCOPE)
   endif()
   if(arg_REQUIRED AND NOT ${lib}_SONAME)

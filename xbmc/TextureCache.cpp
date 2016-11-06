@@ -114,18 +114,28 @@ std::string CTextureCache::CheckCachedImage(const std::string &url, bool &needsR
 
 void CTextureCache::BackgroundCacheImage(const std::string &url)
 {
+  if (url.empty())
+    return;
+
   CTextureDetails details;
   std::string path(GetCachedImage(url, details));
   if (!path.empty() && details.hash.empty())
     return; // image is already cached and doesn't need to be checked further
 
+  path = CTextureUtils::UnwrapImageURL(url);
+  if (path.empty())
+    return;
+
   // needs (re)caching
-  AddJob(new CTextureCacheJob(CTextureUtils::UnwrapImageURL(url), details.hash));
+  AddJob(new CTextureCacheJob(path, details.hash));
 }
 
 std::string CTextureCache::CacheImage(const std::string &image, CBaseTexture **texture /* = NULL */, CTextureDetails *details /* = NULL */)
 {
   std::string url = CTextureUtils::UnwrapImageURL(image);
+  if (url.empty())
+    return "";
+
   CSingleLock lock(m_processingSection);
   if (m_processinglist.find(url) == m_processinglist.end())
   {
@@ -241,9 +251,8 @@ bool CTextureCache::ClearCachedTexture(int id, std::string &cachedURL)
 
 std::string CTextureCache::GetCacheFile(const std::string &url)
 {
-  Crc32 crc;
-  crc.ComputeFromLowerCase(url);
-  std::string hex = StringUtils::Format("%08x", (unsigned int)crc);
+  auto crc = Crc32::ComputeFromLowerCase(url);
+  std::string hex = StringUtils::Format("%08x", crc);
   std::string hash = StringUtils::Format("%c/%s", hex[0], hex.c_str());
   return hash;
 }

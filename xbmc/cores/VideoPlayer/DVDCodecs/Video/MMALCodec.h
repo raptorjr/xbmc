@@ -42,30 +42,48 @@
 #include "cores/VideoPlayer/VideoRenderers/BaseRenderer.h"
 #include "cores/VideoPlayer/DVDResource.h"
 
-// a mmal video frame
-class CMMALBuffer : public IDVDResourceCounted<CMMALBuffer>
-{
-public:
-  virtual ~CMMALBuffer() {}
-  MMAL_BUFFER_HEADER_T *mmal_buffer;
-  unsigned int m_width;
-  unsigned int m_height;
-  unsigned int m_aligned_width;
-  unsigned int m_aligned_height;
-  float m_aspect_ratio;
-};
+
+enum MMALState { MMALStateNone, MMALStateHWDec, MMALStateFFDec, MMALStateDeint, };
 
 class CMMALVideo;
 class CMMALRenderer;
 class CMMALPool;
 
 // a mmal video frame
+class CMMALBuffer : public IDVDResourceCounted<CMMALBuffer>
+{
+public:
+  CMMALBuffer(std::shared_ptr<CMMALPool> pool) : m_pool(pool) {}
+  virtual ~CMMALBuffer() {}
+  MMAL_BUFFER_HEADER_T *mmal_buffer;
+  unsigned int m_width;
+  unsigned int m_height;
+  unsigned int m_aligned_width;
+  unsigned int m_aligned_height;
+  uint32_t m_encoding;
+  float m_aspect_ratio;
+  MMALState m_state;
+  bool m_rendered;
+  bool m_stills;
+  std::shared_ptr<CMMALPool> m_pool;
+  void SetVideoDeintMethod(std::string method);
+  const char *GetStateName() {
+    static const char *names[] = { "MMALStateNone", "MMALStateHWDec", "MMALStateFFDec", "MMALStateDeint", };
+    if ((size_t)m_state < vcos_countof(names))
+      return names[(size_t)m_state];
+    else
+      return "invalid";
+  }
+};
+
+// a mmal video frame
 class CMMALVideoBuffer : public CMMALBuffer
 {
 public:
-  CMMALVideoBuffer(CMMALVideo *omv);
+  CMMALVideoBuffer(CMMALVideo *dec, std::shared_ptr<CMMALPool> pool);
   virtual ~CMMALVideoBuffer();
   CMMALVideo *m_omv;
+protected:
 };
 
 class CMMALVideo : public CDVDVideoCodec
@@ -88,18 +106,12 @@ public:
   virtual void SetSpeed(int iSpeed);
 
   // MMAL decoder callback routines.
-  void Recycle(MMAL_BUFFER_HEADER_T *buffer);
-
-  // MMAL decoder callback routines.
   void dec_output_port_cb(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer);
   void dec_control_port_cb(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer);
   void dec_input_port_cb(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer);
 
 protected:
   void QueryCodec(void);
-  bool CreateDeinterlace(EINTERLACEMETHOD interlace_method);
-  bool DestroyDeinterlace();
-  void Prime();
   void Dispose(void);
 
   // Video format
@@ -127,25 +139,24 @@ protected:
   unsigned          m_num_decoded;
   // Components
   MMAL_INTERLACETYPE_T m_interlace_mode;
-  EINTERLACEMETHOD  m_interlace_method;
   double            m_demuxerPts;
   double            m_decoderPts;
   int               m_speed;
   int               m_codecControlFlags;
   bool              m_dropState;
   bool              m_preroll;
+  bool              m_got_eos;
+  uint32_t          m_packet_num;
+  uint32_t          m_packet_num_eos;
 
   CCriticalSection m_sharedSection;
   MMAL_COMPONENT_T *m_dec;
   MMAL_PORT_T *m_dec_input;
   MMAL_PORT_T *m_dec_output;
   MMAL_POOL_T *m_dec_input_pool;
-  CMMALRenderer *m_renderer;
   std::shared_ptr<CMMALPool> m_pool;
 
   MMAL_ES_FORMAT_T *m_es_format;
-  MMAL_COMPONENT_T *m_deint;
-  MMAL_CONNECTION_T *m_deint_connection;
 
   MMAL_FOURCC_T m_codingType;
   bool change_dec_output_format();

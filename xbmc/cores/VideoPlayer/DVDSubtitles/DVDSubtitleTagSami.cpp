@@ -21,6 +21,8 @@
 #include "DVDSubtitleTagSami.h"
 #include "DVDSubtitleStream.h"
 #include "DVDCodecs/Overlay/DVDOverlayText.h"
+#include "utils/CharsetConverter.h"
+#include "utils/HTMLUtil.h"
 #include "utils/RegExp.h"
 #include "utils/StringUtils.h"
 
@@ -180,7 +182,7 @@ void CDVDSubtitleTagSami::ConvertLine(CDVDOverlayText* pOverlay, const char* lin
       pos = del_start;
       m_flag[FLAG_LANGUAGE] = false;
     }
-    else if (fullTag == "<br>" && !strUTF8.empty())
+    else if (StringUtils::StartsWith(fullTag, "<br") && !strUTF8.empty())
     {
       strUTF8.insert(pos, "\n");
       pos += 1;
@@ -195,6 +197,11 @@ void CDVDSubtitleTagSami::ConvertLine(CDVDOverlayText* pOverlay, const char* lin
 
   if( strUTF8[strUTF8.size()-1] == '\n' )
     strUTF8.erase(strUTF8.size()-1);
+
+  std::wstring wStrHtml, wStr;
+  g_charsetConverter.utf8ToW(strUTF8, wStrHtml);
+  HTML::CHTMLUtil::ConvertHTMLToW(wStrHtml, wStr);
+  g_charsetConverter.wToUTF8(wStr, strUTF8);
 
   // add a new text element to our container
   pOverlay->AddElement(new CDVDOverlayText::CElementText(strUTF8.c_str()));
@@ -222,23 +229,26 @@ void CDVDSubtitleTagSami::CloseTag(CDVDOverlayText* pOverlay)
 
 void CDVDSubtitleTagSami::LoadHead(CDVDSubtitleStream* samiStream)
 {
-  char line[1024];
+  char cLine[1024];
   bool inSTYLE = false;
   CRegExp reg(true);
   if (!reg.RegComp("\\.([a-z]+)[ \t]*\\{[ \t]*name:([^;]*?);[ \t]*lang:([^;]*?);[ \t]*SAMIType:([^;]*?);[ \t]*\\}"))
     return;
 
-  while (samiStream->ReadLine(line, sizeof(line)))
+  while (samiStream->ReadLine(cLine, sizeof(cLine)))
   {
-    if (!strnicmp(line, "<BODY>", 6))
+    std::string line = cLine;
+    StringUtils::Trim(line);
+
+   if (!StringUtils::CompareNoCase(line, "<BODY>"))
       break;
     if (inSTYLE)
     {
-      if (!strnicmp(line, "</STYLE>", 8))
+      if (!StringUtils::CompareNoCase(line, "</STYLE>"))
         break;
       else
       {
-        if (reg.RegFind(line) > -1)
+        if (reg.RegFind(line.c_str()) > -1)
         {
           SLangclass lc;
           lc.ID = reg.GetMatch(1);
@@ -254,9 +264,8 @@ void CDVDSubtitleTagSami::LoadHead(CDVDSubtitleStream* samiStream)
     }
     else
     {
-      if (!strnicmp(line, "<STYLE TYPE=\"text/css\">", 23))
+      if (!StringUtils::CompareNoCase(line, "<STYLE TYPE=\"text/css\">"))
         inSTYLE = true;
     }
   }
 }
-

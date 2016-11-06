@@ -156,7 +156,6 @@ void CAdvancedSettings::Initialize()
   m_DXVACheckCompatibility = false;
   m_DXVACheckCompatibilityPresent = false;
   m_DXVAForceProcessorRenderer = true;
-  m_DXVANoDeintProcForProgressive = false;
   m_DXVAAllowHqScaling = true;
   m_videoFpsDetect = 1;
   m_videoBusyDialogDelay_ms = 500;
@@ -452,11 +451,46 @@ void CAdvancedSettings::ParseSettingsFile(const std::string &file)
   // succeeded - tell the user it worked
   CLog::Log(LOGNOTICE, "Loaded settings file from %s", file.c_str());
 
-  // Dump contents of AS.xml to debug log
+  //Make a copy of the AS.xml and hide advancedsettings passwords
+  CXBMCTinyXML advancedXMLCopy(advancedXML);
+  TiXmlNode *pRootElementCopy = advancedXMLCopy.RootElement();
+  for (const auto& dbname : { "videodatabase", "musicdatabase", "tvdatabase", "adspdatabase", "epgdatabase" })
+  {
+    TiXmlNode *db = pRootElementCopy->FirstChild(dbname);
+    if (db)
+    {
+      TiXmlNode *passTag = db->FirstChild("pass");
+      if (passTag)
+      {
+        TiXmlNode *pass = passTag->FirstChild();
+        if (pass)
+        {
+          passTag->RemoveChild(pass);
+          passTag->LinkEndChild(new TiXmlText("*****"));
+        }
+      }
+    }
+  }
+  TiXmlNode *network = pRootElementCopy->FirstChild("network");
+  if (network)
+  {
+    TiXmlNode *passTag = network->FirstChild("httpproxypassword");
+    if (passTag)
+    {
+      TiXmlNode *pass = passTag->FirstChild();
+      if (pass)
+      {
+        passTag->RemoveChild(pass);
+        passTag->LinkEndChild(new TiXmlText("*****"));
+      }
+    }
+  }
+
+  // Dump contents of copied AS.xml to debug log
   TiXmlPrinter printer;
   printer.SetLineBreak("\n");
   printer.SetIndent("  ");
-  advancedXML.Accept(&printer);
+  advancedXMLCopy.Accept(&printer);
   CLog::Log(LOGNOTICE, "Contents of %s are...\n%s", file.c_str(), printer.CStr());
 
   TiXmlElement *pElement = pRootElement->FirstChildElement("audio");
@@ -644,7 +678,6 @@ void CAdvancedSettings::ParseSettingsFile(const std::string &file)
     m_DXVACheckCompatibilityPresent = XMLUtils::GetBoolean(pElement,"checkdxvacompatibility", m_DXVACheckCompatibility);
 
     XMLUtils::GetBoolean(pElement,"forcedxvarenderer", m_DXVAForceProcessorRenderer);
-    XMLUtils::GetBoolean(pElement,"dxvanodeintforprogressive", m_DXVANoDeintProcForProgressive);
     XMLUtils::GetBoolean(pElement, "dxvaallowhqscaling", m_DXVAAllowHqScaling);
     XMLUtils::GetBoolean(pElement, "usedisplaycontrolhwstereo", m_useDisplayControlHWStereo);
     //0 = disable fps detect, 1 = only detect on timestamps with uniform spacing, 2 detect on all timestamps

@@ -31,6 +31,7 @@
 #include "pvr/channels/PVRChannelGroupsContainer.h"
 #include "pvr/PVRManager.h"
 #include "pvr/recordings/PVRRecordings.h"
+#include "pvr/timers/PVRTimerInfoTag.h"
 #include "settings/AdvancedSettings.h"
 #include "settings/lib/Setting.h"
 #include "settings/Settings.h"
@@ -42,7 +43,8 @@ using namespace EPG;
 using namespace PVR;
 
 CEpgContainer::CEpgContainer(void) :
-    CThread("EPGUpdater")
+  CThread("EPGUpdater"),
+  m_bUpdateNotificationPending(false)
 {
   m_progressHandle = NULL;
   m_bStop = true;
@@ -113,6 +115,7 @@ void CEpgContainer::Clear(bool bClearDb /* = false */)
     m_bStarted = false;
     m_bIsInitialising = true;
     m_iNextEpgId = 0;
+    m_bUpdateNotificationPending = false;
   }
 
   /* clear the database entries */
@@ -171,6 +174,7 @@ void CEpgContainer::Start(bool bAsync)
 
     m_iNextEpgUpdate  = 0;
     m_iNextEpgActiveTagCheck = 0;
+    m_bUpdateNotificationPending = false;
   }
 
   LoadFromDB();
@@ -206,6 +210,14 @@ bool CEpgContainer::Stop(void)
 
 void CEpgContainer::Notify(const Observable &obs, const ObservableMessage msg)
 {
+  if (msg == ObservableMessageEpgItemUpdate)
+  {
+    // there can be many of these notifications during short time period. Thus, announce async and not every event.
+    CSingleLock lock(m_critSection);
+    m_bUpdateNotificationPending = true;
+    return;
+  }
+
   SetChanged();
   CSingleExit ex(m_critSection);
   NotifyObservers(msg);
@@ -354,6 +366,20 @@ void CEpgContainer::Process(void)
     if (!m_bStop)
       CheckPlayingEvents();
 
+    /* check for pending update notifications */
+    if (!m_bStop)
+    {
+      CSingleLock lock(m_critSection);
+      if (m_bUpdateNotificationPending)
+      {
+        m_bUpdateNotificationPending = false;
+        SetChanged();
+
+        CSingleExit ex(m_critSection);
+        NotifyObservers(ObservableMessageEpg);
+      }
+    }
+
     /* check for changes that need to be saved every 60 seconds */
     if (iNow - iLastSave > 60)
     {
@@ -389,6 +415,22 @@ CEpgInfoTagPtr CEpgContainer::GetTagById(const CPVRChannelPtr &channel, unsigned
   return retval;
 }
 
+std::vector<CEpgInfoTagPtr> CEpgContainer::GetEpgTagsForTimer(const CPVRTimerInfoTagPtr &timer) const
+{
+  CPVRChannelPtr channel(timer->ChannelTag());
+
+  if (!channel)
+    channel = timer->UpdateChannel();
+
+  if (channel)
+  {
+    const CEpgPtr epg(channel->GetEPG());
+    if (epg)
+      return epg->GetTagsBetween(timer->StartAsUTC(), timer->EndAsUTC());
+  }
+  return std::vector<CEpgInfoTagPtr>();
+}
+
 void CEpgContainer::InsertFromDatabase(int iEpgID, const std::string &strName, const std::string &strScraperName)
 {
   // table might already have been created when pvr channels were loaded
@@ -415,7 +457,7 @@ void CEpgContainer::InsertFromDatabase(int iEpgID, const std::string &strName, c
   }
 }
 
-CEpgPtr CEpgContainer::CreateChannelEpg(CPVRChannelPtr channel)
+CEpgPtr CEpgContainer::CreateChannelEpg(const CPVRChannelPtr &channel)
 {
   if (!channel)
     return CEpgPtr();
@@ -650,9 +692,6 @@ bool CEpgContainer::UpdateEPG(bool bOnlyPending /* = false */)
   }
   else
   {
-    if (g_PVRManager.IsStarted())
-      g_PVRManager.Recordings()->UpdateEpgTags();
-
     CSingleLock lock(m_critSection);
     CDateTime::GetCurrentDateTime().GetAsUTCDateTime().GetAsTime(m_iNextEpgUpdate);
     m_iNextEpgUpdate += g_advancedSettings.m_iEpgUpdateCheckInterval;

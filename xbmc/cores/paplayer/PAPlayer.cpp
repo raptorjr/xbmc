@@ -21,6 +21,7 @@
 #include "PAPlayer.h"
 #include "CodecFactory.h"
 #include "FileItem.h"
+#include "ServiceBroker.h"
 #include "settings/AdvancedSettings.h"
 #include "settings/Settings.h"
 #include "music/tags/MusicInfoTag.h"
@@ -31,6 +32,7 @@
 #include "cores/AudioEngine/Utils/AEUtil.h"
 #include "cores/AudioEngine/Interfaces/AEStream.h"
 #include "cores/DataCacheCore.h"
+#include "cores/VideoPlayer/Process/ProcessInfo.h"
 
 #define TIME_TO_CACHE_NEXT_FILE 5000 /* 5 seconds before end of song, start caching the next song */
 #define FAST_XFADE_TIME           80 /* 80 milliseconds */
@@ -74,6 +76,7 @@ PAPlayer::PAPlayer(IPlayerCallback& callback) :
   m_newForcedTotalTime (-1)
 {
   memset(&m_playerGUIData, 0, sizeof(m_playerGUIData));
+  m_processInfo.reset(CProcessInfo::CreateInstance());
 }
 
 PAPlayer::~PAPlayer()
@@ -356,7 +359,7 @@ bool PAPlayer::QueueNextFileEx(const CFileItem &file, bool fadeIn/* = true */, b
 
   /* decode until there is data-available */
   si->m_decoder.Start();
-  while(si->m_decoder.GetDataSize() == 0)
+  while(si->m_decoder.GetDataSize(true) == 0)
   {
     int status = si->m_decoder.GetStatus();
     if (status == STATUS_ENDED   ||
@@ -759,7 +762,7 @@ inline bool PAPlayer::ProcessStream(StreamInfo *si, double &freeBufferTime)
       time = si->m_startOffset;
       si->m_framesSent      = 0;
       si->m_seekNextAtFrame = 0;
-      ToFFRW(1);
+      SetSpeed(1);
     }
 
     si->m_decoder.Seek(time);
@@ -838,7 +841,7 @@ bool PAPlayer::QueueData(StreamInfo *si)
 
   if (si->m_audioFormat.m_dataFormat != AE_FMT_RAW)
   {
-    unsigned int samples = std::min(si->m_decoder.GetDataSize(), space / si->m_bytesPerSample);
+    unsigned int samples = std::min(si->m_decoder.GetDataSize(false), space / si->m_bytesPerSample);
     if (!samples)
       return true;
 
@@ -914,11 +917,6 @@ bool PAPlayer::IsPlaying() const
   return m_isPlaying;
 }
 
-bool PAPlayer::IsPaused() const
-{
-  return m_isPaused;
-}
-
 void PAPlayer::Pause()
 {
   if (m_isPaused)
@@ -945,10 +943,32 @@ void PAPlayer::SetDynamicRangeCompression(long drc)
 
 }
 
-void PAPlayer::ToFFRW(int iSpeed)
+void PAPlayer::SetSpeed(float speed)
 {
-  m_playbackSpeed     = iSpeed;
+  m_playbackSpeed = static_cast<int>(speed);
+  if (m_playbackSpeed != 0 && m_isPaused)
+  {
+    m_isPaused = false;
+    SoftStart();
+  }
+  else if (m_playbackSpeed == 0 && !m_isPaused)
+  {
+    m_isPaused = true;
+    SoftStop(true, false);
+  }
   m_signalSpeedChange = true;
+}
+
+float PAPlayer::GetSpeed()
+{
+  //! @todo: remove extra member for pause state
+  //! there was inconsistency throughout the entire application on how speed
+  //! and pause were used. Now speed is defined as current playback speed.
+  //! as a result speed must be 0 if player is paused.
+  if (m_isPaused)
+    return 0;
+
+  return m_playbackSpeed;
 }
 
 int64_t PAPlayer::GetTimeInternal()
@@ -1079,7 +1099,7 @@ void PAPlayer::SeekTime(int64_t iTime /*=0*/)
   int seekOffset = (int)(iTime - GetTimeInternal());
 
   if (m_playbackSpeed != 1)
-    ToFFRW(1);
+    SetSpeed(1);
 
   m_currentStream->m_seekFrame = (int)((float)m_currentStream->m_audioFormat.m_sampleRate * ((float)iTime + (float)m_currentStream->m_startOffset) / 1000.0f);
   m_callback.OnPlayBackSeek((int)iTime, seekOffset);
@@ -1130,7 +1150,7 @@ void PAPlayer::UpdateGUIData(StreamInfo *si)
   total -= m_currentStream->m_startOffset;
   m_playerGUIData.m_totalTime = total;
 
-  g_dataCacheCore.SignalAudioInfoChange();
+  CServiceBroker::GetDataCacheCore().SignalAudioInfoChange();
 }
 
 void PAPlayer::OnJobComplete(unsigned int jobID, bool success, CJob *job)

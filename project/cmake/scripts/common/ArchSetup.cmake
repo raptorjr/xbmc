@@ -75,11 +75,19 @@ endif()
 set(CORE_MAIN_SOURCE ${CORE_SOURCE_DIR}/xbmc/platform/posix/main.cpp)
 
 # system specific arch setup
+if(NOT EXISTS ${PROJECT_SOURCE_DIR}/scripts/${CORE_SYSTEM_NAME}/ArchSetup.cmake)
+  message(FATAL_ERROR "Couldn't find configuration for '${CORE_SYSTEM_NAME}' "
+                      "Either the platform is not (yet) supported "
+                      "or a toolchain file has to be specified. "
+                      "Consult ${CMAKE_SOURCE_DIR}/README.md for instructions. "
+                      "Note: Specifying a toolchain requires a clean build directory!")
+endif()
 include(${PROJECT_SOURCE_DIR}/scripts/${CORE_SYSTEM_NAME}/ArchSetup.cmake)
 
 message(STATUS "Core system type: ${CORE_SYSTEM_NAME}")
 message(STATUS "Platform: ${PLATFORM}")
 message(STATUS "CPU: ${CPU}, ARCH: ${ARCH}")
+message(STATUS "Cross-Compiling: ${CMAKE_CROSSCOMPILING}")
 
 check_type(string std::u16string HAVE_STD__U16_STRING)
 check_type(string std::u32string HAVE_STD__U32_STRING)
@@ -87,6 +95,7 @@ check_type(string char16_t HAVE_CHAR16_T)
 check_type(string char32_t HAVE_CHAR32_T)
 check_type(stdint.h uint_least16_t HAVE_STDINT_H)
 check_symbol_exists(posix_fadvise fcntl.h HAVE_POSIX_FADVISE)
+check_symbol_exists(PRIdMAX inttypes.h HAVE_INTTYPES_H)
 check_builtin("long* temp=0; long ret=__sync_add_and_fetch(temp, 1)" HAS_BUILTIN_SYNC_ADD_AND_FETCH)
 check_builtin("long* temp=0; long ret=__sync_sub_and_fetch(temp, 1)" HAS_BUILTIN_SYNC_SUB_AND_FETCH)
 check_builtin("long* temp=0; long ret=__sync_val_compare_and_swap(temp, 1, 1)" HAS_BUILTIN_SYNC_VAL_COMPARE_AND_SWAP)
@@ -97,3 +106,35 @@ check_function_exists(localtime_r HAVE_LOCALTIME_R)
 if(HAVE_LOCALTIME_R)
   list(APPEND SYSTEM_DEFINES -DHAVE_LOCALTIME_R=1)
 endif()
+if(HAVE_INTTYPES_H)
+  list(APPEND SYSTEM_DEFINES -DHAVE_INTTYPES_H=1)
+endif()
+
+find_package(SSE)
+foreach(_sse SSE SSE2 SSE3 SSSE3 SSE4_1 SSE4_2 AVX AVX2)
+  if(${${_sse}_FOUND})
+    # enable SSE versions up to 4.1 by default, if available
+    if(NOT ${_sse} MATCHES "AVX" AND NOT ${_sse} STREQUAL "SSE4_2")
+      option(ENABLE_${_sse} "Enable ${_sse}" ON)
+    else()
+      option(ENABLE_${_sse} "Enable ${_sse}" OFF)
+    endif()
+  endif()
+  if(ENABLE_${_sse})
+    set(HAVE_${_sse} TRUE CACHE STRING "${_sse} enabled")
+    list(APPEND ARCH_DEFINES -DHAVE_${_sse}=1)
+  endif()
+endforeach()
+
+if(NOT DEFINED NEON OR NEON)
+  option(ENABLE_NEON "Enable NEON optimization" ${NEON})
+  if(ENABLE_NEON)
+    message(STATUS "NEON optimization enabled")
+    add_options(CXX ALL_BUILDS "-mfpu=neon -mvectorize-with-neon-quad")
+  endif()
+endif()
+
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+  add_options (ALL_LANGUAGES DEBUG "-g" "-D_DEBUG" "-Wall")
+endif()
+

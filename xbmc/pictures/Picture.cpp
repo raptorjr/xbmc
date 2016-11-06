@@ -26,6 +26,7 @@
 #include <algorithm>
 
 #include "Picture.h"
+#include "URL.h"
 #include "settings/AdvancedSettings.h"
 #include "settings/Settings.h"
 #include "FileItem.h"
@@ -41,6 +42,7 @@
 
 extern "C" {
 #include "libswscale/swscale.h"
+#include "libavutil/mem.h"
 }
 
 using namespace XFILE;
@@ -72,7 +74,7 @@ bool CPicture::GetThumbnailFromSurface(const unsigned char* buffer, int width, i
 
 bool CPicture::CreateThumbnailFromSurface(const unsigned char *buffer, int width, int height, int stride, const std::string &thumbFile)
 {
-  CLog::Log(LOGDEBUG, "cached image '%s' size %dx%d", thumbFile.c_str(), width, height);
+  CLog::Log(LOGDEBUG, "cached image '%s' size %dx%d", CURL::GetRedacted(thumbFile).c_str(), width, height);
   if (URIUtils::HasExtension(thumbFile, ".jpg"))
   {
 #if defined(HAS_OMXPLAYER)
@@ -86,7 +88,7 @@ bool CPicture::CreateThumbnailFromSurface(const unsigned char *buffer, int width
   IImage* pImage = ImageFactory::CreateLoader(thumbFile);
   if(pImage == NULL || !pImage->CreateThumbnailFromSurface((BYTE *)buffer, width, height, XB_FMT_A8R8G8B8, stride, thumbFile.c_str(), thumb, thumbsize))
   {
-    CLog::Log(LOGERROR, "Failed to CreateThumbnailFromSurface for %s", thumbFile.c_str());
+    CLog::Log(LOGERROR, "Failed to CreateThumbnailFromSurface for %s", CURL::GetRedacted(thumbFile).c_str());
     delete pImage;
     return false;
   }
@@ -119,7 +121,7 @@ bool CThumbnailWriter::DoWork()
 
   if (!CPicture::CreateThumbnailFromSurface(m_buffer, m_width, m_height, m_stride, m_thumbFile))
   {
-    CLog::Log(LOGERROR, "CThumbnailWriter::DoWork unable to write %s", m_thumbFile.c_str());
+    CLog::Log(LOGERROR, "CThumbnailWriter::DoWork unable to write %s", CURL::GetRedacted(m_thumbFile).c_str());
     success = false;
   }
 
@@ -175,7 +177,7 @@ bool CPicture::ResizeTexture(const std::string &image, uint8_t *pixels, uint32_t
   // create a buffer large enough for the resulting image
   GetScale(width, height, dest_width, dest_height);
 
-  uint8_t *buffer = new uint8_t[dest_width * dest_height * sizeof(uint32_t)];
+  uint8_t *buffer = (uint8_t*) av_malloc(dest_width * dest_height * sizeof(uint32_t));
   if (buffer == NULL)
   {
     result = NULL;
@@ -185,14 +187,14 @@ bool CPicture::ResizeTexture(const std::string &image, uint8_t *pixels, uint32_t
 
   if (!ScaleImage(pixels, width, height, pitch, buffer, dest_width, dest_height, dest_width * sizeof(uint32_t), scalingAlgorithm))
   {
-    delete[] buffer;
+    av_freep(&buffer);
     result = NULL;
     result_size = 0;
     return false;
   }
 
   bool success = GetThumbnailFromSurface(buffer, dest_width, dest_height, dest_width * sizeof(uint32_t), image, result, result_size);
-  delete[] buffer;
+  av_freep(&buffer);
 
   if (!success)
   {
@@ -244,7 +246,7 @@ bool CPicture::CacheTexture(uint8_t *pixels, uint32_t width, uint32_t height, ui
 
     // create a buffer large enough for the resulting image
     GetScale(width, height, dest_width, dest_height);
-    uint32_t *buffer = new uint32_t[dest_width * dest_height];
+    uint32_t *buffer = (uint32_t*) av_malloc(dest_width * dest_height * sizeof(uint32_t));
     if (buffer)
     {
       if (ScaleImage(pixels, width, height, pitch,
@@ -256,7 +258,7 @@ bool CPicture::CacheTexture(uint8_t *pixels, uint32_t width, uint32_t height, ui
           success = CreateThumbnailFromSurface((unsigned char*)buffer, dest_width, dest_height, dest_width * 4, dest);
         }
       }
-      delete[] buffer;
+      av_freep(&buffer);
     }
     return success;
   }
@@ -296,7 +298,7 @@ bool CPicture::CreateTiledThumb(const std::vector<std::string> &files, const std
       GetScale(texture->GetWidth(), texture->GetHeight(), width, height);
 
       // scale appropriately
-      uint32_t *scaled = new uint32_t[width * height];
+      uint32_t *scaled = (uint32_t*) av_malloc(width * height * sizeof(uint32_t));
       if (ScaleImage(texture->GetPixels(), texture->GetWidth(), texture->GetHeight(), texture->GetPitch(),
                      (uint8_t *)scaled, width, height, width * 4))
       {
@@ -316,7 +318,7 @@ bool CPicture::CreateTiledThumb(const std::vector<std::string> &files, const std
           }
         }
       }
-      delete[] scaled;
+      av_freep(&scaled);
     }
     delete texture;
   }

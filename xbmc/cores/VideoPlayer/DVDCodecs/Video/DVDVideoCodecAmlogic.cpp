@@ -27,6 +27,7 @@
 #include "utils/AMLUtils.h"
 #include "utils/BitstreamConverter.h"
 #include "utils/log.h"
+#include "utils/SysfsUtils.h"
 #include "threads/Atomics.h"
 #include "settings/Settings.h"
 
@@ -50,7 +51,8 @@ CDVDVideoCodecAmlogic::CDVDVideoCodecAmlogic(CProcessInfo &processInfo) : CDVDVi
   m_mpeg2_sequence(NULL),
   m_bitparser(NULL),
   m_bitstream(NULL),
-  m_opened(false)
+  m_opened(false),
+  m_drop(false)
 {
   pthread_mutex_init(&m_queue_mutex, NULL);
 }
@@ -100,6 +102,17 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
     case AV_CODEC_ID_H264:
       if (m_hints.width <= CSettings::GetInstance().GetInt(CSettings::SETTING_VIDEOPLAYER_USEAMCODECH264))
         return false;
+      switch(hints.profile)
+      {
+        case FF_PROFILE_H264_HIGH_10:
+        case FF_PROFILE_H264_HIGH_10_INTRA:
+        case FF_PROFILE_H264_HIGH_422:
+        case FF_PROFILE_H264_HIGH_422_INTRA:
+        case FF_PROFILE_H264_HIGH_444_PREDICTIVE:
+        case FF_PROFILE_H264_HIGH_444_INTRA:
+        case FF_PROFILE_H264_CAVLC_444:
+          return false;
+      }
       if ((!aml_support_h264_4k2k()) && ((m_hints.width > 1920) || (m_hints.height > 1088)))
       {
         // 4K is supported only on Amlogic S802/S812 chip
@@ -166,6 +179,10 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
         // HEVC supported only on S805 and S812.
         return false;
       }
+      if ((hints.profile == FF_PROFILE_HEVC_MAIN_10) && !aml_support_hevc_10bit())
+      {
+        return false;
+      }
       m_pFormatName = "am-h265";
       m_bitstream = new CBitstreamConverter();
       m_bitstream->Open(m_hints.codec, (uint8_t*)m_hints.extradata, m_hints.extrasize, true);
@@ -215,6 +232,10 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
       m_videobuffer.iDisplayHeight = ((int)lrint(m_videobuffer.iWidth / m_hints.aspect)) & ~3;
     }
   }
+
+  m_processInfo.SetVideoDecoderName(m_pFormatName, true);
+  m_processInfo.SetVideoDimensions(m_hints.width, m_hints.height);
+  m_processInfo.SetVideoDeintMethod("hardware");
 
   CLog::Log(LOGINFO, "%s: Opened Amlogic Codec", __MODULE_NAME__);
   return true;
@@ -294,7 +315,7 @@ bool CDVDVideoCodecAmlogic::GetPicture(DVDVideoPicture* pDvdVideoPicture)
     m_Codec->GetPicture(&m_videobuffer);
   *pDvdVideoPicture = m_videobuffer;
 
-  CDVDAmlogicInfo* info = new CDVDAmlogicInfo(this, m_Codec, (int)m_Codec->GetCurPts());
+  CDVDAmlogicInfo* info = new CDVDAmlogicInfo(this, m_Codec, m_Codec->GetOMXPts());
 
   {
     CSingleLock lock(m_secure);
@@ -330,6 +351,19 @@ bool CDVDVideoCodecAmlogic::ClearPicture(DVDVideoPicture *pDvdVideoPicture)
 
 void CDVDVideoCodecAmlogic::SetDropState(bool bDrop)
 {
+  if (bDrop == m_drop)
+    return;
+
+  m_drop = bDrop;
+  if (bDrop)
+    m_videobuffer.iFlags |=  DVP_FLAG_DROPPED;
+  else
+    m_videobuffer.iFlags &= ~DVP_FLAG_DROPPED;
+
+  // Freerun mode causes amvideo driver to ignore timing and process frames
+  // as quickly as they are coming from decoder. By enabling freerun mode we can
+  // skip rendering of the frames that are requested to be dropped by VideoPlayer.
+  SysfsUtils::SetInt("/sys/class/video/freerun_mode", bDrop ? 1 : 0);
 }
 
 void CDVDVideoCodecAmlogic::SetSpeed(int iSpeed)

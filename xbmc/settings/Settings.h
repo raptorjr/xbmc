@@ -88,7 +88,6 @@ public:
   static const std::string SETTING_VIDEOLIBRARY_ACTORTHUMBS;
   static const std::string SETTING_MYVIDEOS_FLATTEN;
   static const std::string SETTING_VIDEOLIBRARY_FLATTENTVSHOWS;
-  static const std::string SETTING_VIDEOLIBRARY_REMOVE_DUPLICATES;
   static const std::string SETTING_VIDEOLIBRARY_TVSHOWSSELECTFIRSTUNWATCHEDITEM;
   static const std::string SETTING_VIDEOLIBRARY_TVSHOWSINCLUDEALLSEASONSANDSPECIALS;
   static const std::string SETTING_VIDEOLIBRARY_SHOWALLITEMS;
@@ -207,6 +206,7 @@ public:
   static const std::string SETTING_PVRRECORD_MARGINEND;
   static const std::string SETTING_PVRRECORD_PREVENTDUPLICATEEPISODES;
   static const std::string SETTING_PVRRECORD_TIMERNOTIFICATIONS;
+  static const std::string SETTING_PVRRECORD_GROUPRECORDINGS;
   static const std::string SETTING_PVRPOWERMANAGEMENT_ENABLED;
   static const std::string SETTING_PVRPOWERMANAGEMENT_BACKENDIDLETIME;
   static const std::string SETTING_PVRPOWERMANAGEMENT_SETWAKEUPCMD;
@@ -260,6 +260,7 @@ public:
   static const std::string SETTING_SLIDESHOW_STAYTIME;
   static const std::string SETTING_SLIDESHOW_DISPLAYEFFECTS;
   static const std::string SETTING_SLIDESHOW_SHUFFLE;
+  static const std::string SETTING_SLIDESHOW_HIGHQUALITYDOWNSCALING;
   static const std::string SETTING_WEATHER_CURRENTLOCATION;
   static const std::string SETTING_WEATHER_ADDON;
   static const std::string SETTING_WEATHER_ADDONSETTINGS;
@@ -298,6 +299,8 @@ public:
   static const std::string SETTING_VIDEOSCREEN_STEREOSCOPICMODE;
   static const std::string SETTING_VIDEOSCREEN_PREFEREDSTEREOSCOPICMODE;
   static const std::string SETTING_VIDEOSCREEN_NOOFBUFFERS;
+  static const std::string SETTING_VIDEOSCREEN_3DLUT;
+  static const std::string SETTING_VIDEOSCREEN_DISPLAYPROFILE;
   static const std::string SETTING_VIDEOSCREEN_GUICALIBRATION;
   static const std::string SETTING_VIDEOSCREEN_TESTPATTERN;
   static const std::string SETTING_VIDEOSCREEN_LIMITEDRANGE;
@@ -308,9 +311,10 @@ public:
   static const std::string SETTING_AUDIOOUTPUT_SAMPLERATE;
   static const std::string SETTING_AUDIOOUTPUT_STEREOUPMIX;
   static const std::string SETTING_AUDIOOUTPUT_MAINTAINORIGINALVOLUME;
-  static const std::string SETTING_AUDIOOUTPUT_NORMALIZELEVELS;
   static const std::string SETTING_AUDIOOUTPUT_PROCESSQUALITY;
+  static const std::string SETTING_AUDIOOUTPUT_ATEMPOTHRESHOLD;
   static const std::string SETTING_AUDIOOUTPUT_STREAMSILENCE;
+  static const std::string SETTING_AUDIOOUTPUT_STREAMNOISE;
   static const std::string SETTING_AUDIOOUTPUT_DSPADDONSENABLED;
   static const std::string SETTING_AUDIOOUTPUT_DSPSETTINGS;
   static const std::string SETTING_AUDIOOUTPUT_DSPRESETDB;
@@ -327,6 +331,8 @@ public:
   static const std::string SETTING_INPUT_PERIPHERALS;
   static const std::string SETTING_INPUT_ENABLEMOUSE;
   static const std::string SETTING_INPUT_CONTROLLERCONFIG;
+  static const std::string SETTING_INPUT_TESTRUMBLE;
+  static const std::string SETTING_INPUT_CONTROLLERPOWEROFF;
   static const std::string SETTING_INPUT_APPLEREMOTEMODE;
   static const std::string SETTING_INPUT_APPLEREMOTEALWAYSON;
   static const std::string SETTING_INPUT_APPLEREMOTESEQUENCETIME;
@@ -369,6 +375,9 @@ public:
   static const std::string SETTING_ADDONS_ALLOW_UNKNOWN_SOURCES;
   static const std::string SETTING_GENERAL_ADDONFOREIGNFILTER;
   static const std::string SETTING_GENERAL_ADDONBROKENFILTER;
+  static const std::string SETTING_SOURCE_VIDEOS;
+  static const std::string SETTING_SOURCE_MUSIC;
+  static const std::string SETTING_SOURCE_PICTURES;
 
   /*!
    \brief Creates a new settings wrapper around a new settings manager.

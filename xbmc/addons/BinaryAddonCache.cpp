@@ -32,14 +32,14 @@ CBinaryAddonCache::~CBinaryAddonCache()
 
 void CBinaryAddonCache::Init()
 {
-  m_addonsToCache = {ADDON_AUDIODECODER, ADDON_INPUTSTREAM};
-  CAddonMgr::GetInstance().RegisterObserver(this);
+  m_addonsToCache = {ADDON_AUDIODECODER, ADDON_INPUTSTREAM, ADDON_PVRDLL};
+  CAddonMgr::GetInstance().Events().Subscribe(this, &CBinaryAddonCache::OnEvent);
   Update();
 }
 
 void CBinaryAddonCache::Deinit()
 {
-  CAddonMgr::GetInstance().UnregisterObserver(this);
+  CAddonMgr::GetInstance().Events().Unsubscribe(this);
 }
 
 void CBinaryAddonCache::GetAddons(VECADDONS& addons, const TYPE& type)
@@ -57,9 +57,10 @@ void CBinaryAddonCache::GetAddons(VECADDONS& addons, const TYPE& type)
   }
 }
 
-void CBinaryAddonCache::Notify(const Observable &obs, const ObservableMessage msg)
+void CBinaryAddonCache::OnEvent(const AddonEvent& event)
 {
-  Update();
+  if (typeid(event) == typeid(AddonEvents::InstalledChanged))
+    Update();
 }
 
 void CBinaryAddonCache::Update()

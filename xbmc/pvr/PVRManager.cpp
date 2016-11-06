@@ -75,21 +75,6 @@ using namespace KODI::MESSAGING;
 
 using KODI::MESSAGING::HELPERS::DialogResponse;
 
-const int CPVRManager::m_pvrWindowIds[12] = {
-    WINDOW_TV_CHANNELS,
-    WINDOW_TV_GUIDE,
-    WINDOW_TV_RECORDINGS,
-    WINDOW_TV_SEARCH,
-    WINDOW_TV_TIMERS,
-    WINDOW_TV_TIMER_RULES,
-    WINDOW_RADIO_CHANNELS,
-    WINDOW_RADIO_GUIDE,
-    WINDOW_RADIO_RECORDINGS,
-    WINDOW_RADIO_SEARCH,
-    WINDOW_RADIO_TIMERS,
-    WINDOW_RADIO_TIMER_RULES
-};
-
 CPVRManager::CPVRManager(void) :
     CThread("PVRManager"),
     m_triggerEvent(true),
@@ -99,7 +84,8 @@ CPVRManager::CPVRManager(void) :
     m_bIsSwitchingChannels(false),
     m_bEpgsCreated(false),
     m_progressHandle(NULL),
-    m_managerState(ManagerStateStopped)
+    m_managerState(ManagerStateStopped),
+    m_isChannelPreview(false)
 {
   CAnnouncementManager::GetInstance().AddAnnouncer(this);
   m_addons.reset(new CPVRClients);
@@ -297,6 +283,13 @@ void CPVRManager::Init()
   CJobManager::GetInstance().AddJob(new CPVRStartupJob(), nullptr);
 }
 
+void CPVRManager::Reinit()
+{
+  // initial check for enabled addons
+  // if at least one pvr addon is enabled, PVRManager start up
+  CJobManager::GetInstance().AddJob(new CPVRStartupJob(), nullptr);
+}
+
 void CPVRManager::Start()
 {
   Stop();
@@ -352,21 +345,61 @@ void CPVRManager::Stop(void)
   Cleanup();
 }
 
-ManagerState CPVRManager::GetState(void) const
+CPVRManager::ManagerState CPVRManager::GetState(void) const
 {
   CSingleLock lock(m_managerStateMutex);
   return m_managerState;
 }
 
-void CPVRManager::SetState(ManagerState state)
+void CPVRManager::SetState(CPVRManager::ManagerState state)
 {
+  ObservableMessage observableMsg(ObservableMessageNone);
+
   {
     CSingleLock lock(m_managerStateMutex);
+    if (m_managerState == state)
+      return;
+
     m_managerState = state;
-    SetChanged();
+
+    PVREvent event;
+    switch (state)
+    {
+      case ManagerStateError:
+        event = ManagerError;
+        break;
+      case ManagerStateStopped:
+        event = ManagerStopped;
+        observableMsg = ObservableMessageManagerStopped;
+        break;
+      case ManagerStateStarting:
+        event = ManagerStarting;
+        break;
+      case ManagerStateStopping:
+        event = ManagerStopped;
+        break;
+      case ManagerStateInterrupted:
+        event = ManagerInterrupted;
+        break;
+      case ManagerStateStarted:
+        event = ManagerStarted;
+        break;
+      default:
+        return;
+    }
+    m_events.Publish(event);
   }
 
-  NotifyObservers(ObservableMessageManagerStateChanged);
+  if (observableMsg != ObservableMessageNone)
+  {
+    SetChanged();
+    NotifyObservers(observableMsg);
+  }
+}
+
+void CPVRManager::PublishEvent(PVREvent event)
+{
+  m_events.Publish(event);
 }
 
 void CPVRManager::Process(void)
@@ -494,20 +527,14 @@ bool CPVRManager::Load(bool bShowProgress)
 
   CLog::Log(LOGDEBUG, "PVRManager - %s - active clients found. continue to start", __FUNCTION__);
 
-  /* reset observer for pvr windows */
-  for (std::size_t i = 0; i != ARRAY_SIZE(m_pvrWindowIds); i++)
-  {
-    CSingleExit exit(m_critSection);
-    CGUIWindowPVRBase *pWindow = (CGUIWindowPVRBase *) g_windowManager.GetWindow(m_pvrWindowIds[i]);
-    if (pWindow)
-      pWindow->ResetObservers();
-  }
-
   /* load all channels and groups */
   if (bShowProgress)
     ShowProgressDialog(g_localizeStrings.Get(19236), 0); // Loading channels from clients
   if (!m_channelGroups->Load() || !IsInitialising())
     return false;
+
+  SetChanged();
+  NotifyObservers(ObservableMessageChannelGroupsLoaded);
 
   /* get timers from the backends */
   if (bShowProgress)
@@ -1177,6 +1204,7 @@ void CPVRManager::CloseStream(void)
     g_application.SaveFileState();
   }
 
+  m_isChannelPreview = false;
   m_addons->CloseStream();
   SAFE_DELETE(m_currentFile);
 }
@@ -1202,6 +1230,9 @@ bool CPVRManager::PlayMedia(const CFileItem& item)
   if (pvrItem.IsPVRChannel() && !g_PVRManager.CheckParentalLock(pvrItem.GetPVRChannelInfoTag()))
     return false;
 
+  /* copy over resume info from original item */
+  pvrItem.m_lStartOffset = item.m_lStartOffset;
+
   if (!g_application.IsCurrentThread())
   {
     CFileItemList *l = new CFileItemList; //don't delete,
@@ -1225,6 +1256,7 @@ void CPVRManager::UpdateCurrentChannel(void)
     delete m_currentFile;
     m_currentFile = new CFileItem(playingChannel);
     UpdateItem(*m_currentFile);
+    m_isChannelPreview = false;
   }
 }
 
@@ -1411,6 +1443,12 @@ bool CPVRManager::PerformChannelSwitch(const CPVRChannelPtr &channel, bool bPrev
     {
       delete m_currentFile;
       m_currentFile = new CFileItem(channel);
+
+      if (IsPlayingChannel(channel))
+        m_isChannelPreview = false;
+      else
+        m_isChannelPreview = true;
+
       return true;
     }
 
@@ -1469,6 +1507,16 @@ bool CPVRManager::PerformChannelSwitch(const CPVRChannelPtr &channel, bool bPrev
   m_triggerEvent.Set();
 
   return bSwitched;
+}
+
+void CPVRManager::SetChannelPreview(bool preview)
+{
+  m_isChannelPreview = preview;
+}
+
+bool CPVRManager::IsChannelPreview() const
+{
+  return m_isChannelPreview;
 }
 
 int CPVRManager::GetTotalTime(void) const

@@ -71,6 +71,9 @@ struct AudioSettings
   int guisoundmode;
   unsigned int samplerate;
   AEQuality resampleQuality;
+  double atempoThreshold;
+  bool streamNoise;
+  int silenceTimeout;
 };
 
 class CActiveAEControlProtocol : public Protocol

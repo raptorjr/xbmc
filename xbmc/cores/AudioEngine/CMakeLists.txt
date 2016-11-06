@@ -9,12 +9,12 @@ set(SOURCES AEFactory.cpp
             Encoders/AEEncoderFFmpeg.cpp
             Engines/ActiveAE/ActiveAE.cpp
             Engines/ActiveAE/ActiveAEBuffer.cpp
+            Engines/ActiveAE/ActiveAEFilter.cpp
             Engines/ActiveAE/ActiveAESink.cpp
             Engines/ActiveAE/ActiveAEStream.cpp
             Engines/ActiveAE/ActiveAESound.cpp
             Utils/AEBitstreamPacker.cpp
             Utils/AEChannelInfo.cpp
-            Utils/AEBuffer.cpp
             Utils/AEDeviceInfo.cpp
             Utils/AELimiter.cpp
             Utils/AEPackIEC61937.cpp
@@ -33,6 +33,7 @@ set(HEADERS AEFactory.h
             Encoders/AEEncoderFFmpeg.h
             Engines/ActiveAE/ActiveAE.h
             Engines/ActiveAE/ActiveAEBuffer.h
+            Engines/ActiveAE/ActiveAEFilter.h
             Engines/ActiveAE/ActiveAESink.h
             Engines/ActiveAE/ActiveAESound.h
             Engines/ActiveAE/ActiveAEStream.h
@@ -47,7 +48,6 @@ set(HEADERS AEFactory.h
             Sinks/AESinkNULL.h
             Utils/AEAudioFormat.h
             Utils/AEBitstreamPacker.h
-            Utils/AEBuffer.h
             Utils/AEChannelData.h
             Utils/AEChannelInfo.h
             Utils/AEDeviceInfo.h
@@ -124,11 +124,18 @@ if(CORE_SYSTEM_NAME STREQUAL android)
   list(APPEND HEADERS Sinks/AESinkAUDIOTRACK.h)
 endif()
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+if(CORE_SYSTEM_NAME STREQUAL freebsd)
+  list(APPEND SOURCES Sinks/AESinkOSS.cpp)
+  list(APPEND HEADERS Sinks/AESinkOSS.h)
+endif()
 
 core_add_library(audioengine)
-add_dependencies(audioengine libcpluff)
-
-if(ENABLE_INTERNAL_FFMPEG)
-  add_dependencies(audioengine ffmpeg)
+target_include_directories(${CORE_LIBRARY} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+if(NOT CORE_SYSTEM_NAME STREQUAL windows)
+  if(HAVE_SSE)
+    target_compile_options(${CORE_LIBRARY} PRIVATE -msse)
+  endif()
+  if(HAVE_SSE2)
+    target_compile_options(${CORE_LIBRARY} PRIVATE -msse2)
+  endif()
 endif()

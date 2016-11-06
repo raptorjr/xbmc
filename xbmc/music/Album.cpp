@@ -173,6 +173,8 @@ CAlbum::CAlbum(const CFileItem& item)
   }
 
   iYear = stTime.wYear;
+  strLabel = tag.GetRecordLabel();
+  strType = tag.GetMusicBrainzReleaseType();
   bCompilation = tag.GetCompilation();
   iTimesPlayed = 0;
   dateAdded.Reset();
@@ -376,12 +378,12 @@ bool CAlbum::Load(const TiXmlElement *album, bool append, bool prioritise)
   if (rElement)
   {
     float rating = 0;
-    float max_rating = 5;
+    float max_rating = 10;
     XMLUtils::GetFloat(album, "rating", rating);
     if (rElement->QueryFloatAttribute("max", &max_rating) == TIXML_SUCCESS && max_rating>=1)
-      rating *= (5.f / max_rating); // Normalise the Rating to between 0 and 5 
-    if (rating > 5.f)
-      rating = 5.f;
+      rating *= (10.f / max_rating); // Normalise the Rating to between 0 and 10 
+    if (rating > 10.f)
+      rating = 10.f;
     fRating = rating;
   }
   const TiXmlElement* userrating = album->FirstChildElement("userrating");
@@ -543,8 +545,14 @@ bool CAlbum::Save(TiXmlNode *node, const std::string &tag, const std::string& st
   }
   XMLUtils::SetString(album,        "path", strPath);
 
-  XMLUtils::SetFloat(album,         "rating", fRating);
-  XMLUtils::SetInt(album,           "userrating", iUserrating);
+  auto* rating = XMLUtils::SetFloat(album, "rating", fRating);
+  if (rating)
+    rating->ToElement()->SetAttribute("max", 10);
+
+  auto* userrating = XMLUtils::SetInt(album, "userrating", iUserrating);
+  if (userrating)
+    userrating->ToElement()->SetAttribute("max", 10);
+
   XMLUtils::SetInt(album,           "votes", iVotes);
   XMLUtils::SetInt(album,           "year", iYear);
 

@@ -40,7 +40,6 @@ class CRenderCapture;
 class CBaseTexture;
 namespace Shaders { class BaseYUV2RGBShader; }
 namespace Shaders { class BaseVideoFilterShader; }
-typedef std::vector<int>     Features;
 
 
 #undef ALIGN
@@ -146,10 +145,7 @@ public:
   // Feature support
   virtual bool SupportsMultiPassRendering() override;
   virtual bool Supports(ERENDERFEATURE feature) override;
-  virtual bool Supports(EDEINTERLACEMODE mode) override;
-  virtual bool Supports(EINTERLACEMETHOD method) override;
   virtual bool Supports(ESCALINGMETHOD method) override;
-  virtual EINTERLACEMETHOD AutoInterlaceMethod() override;
 
   virtual CRenderInfo GetRenderInfo() override;
 
@@ -191,6 +187,7 @@ protected:
   // hooks for HwDec Renderered
   virtual bool LoadShadersHook() { return false; }
   virtual bool RenderHook(int idx) { return false; }
+  virtual void AfterRenderHook(int idx) {};
   virtual bool RenderUpdateVideoHook(bool clear, DWORD flags, DWORD alpha) { return false; }
   virtual int  GetImageHook(YV12Image *image, int source = AUTOSOURCE, bool readonly = false) { return NOSOURCE; }
   virtual bool RenderUpdateCheckForEmptyField() { return true; }
@@ -263,11 +260,6 @@ protected:
   Shaders::BaseVideoFilterShader *m_pVideoFilterShader;
   ESCALINGMETHOD m_scalingMethod;
   ESCALINGMETHOD m_scalingMethodGui;
-
-  Features m_renderFeatures;
-  Features m_deinterlaceMethods;
-  Features m_deinterlaceModes;
-  Features m_scalingMethods;
 
   // clear colour for "black" bars
   float m_clearColour;

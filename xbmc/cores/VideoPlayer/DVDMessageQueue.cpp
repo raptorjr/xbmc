@@ -23,7 +23,7 @@
 #include "utils/log.h"
 #include "threads/SingleLock.h"
 #include "DVDClock.h"
-#include "utils/MathUtils.h"
+#include "math.h"
 
 CDVDMessageQueue::CDVDMessageQueue(const std::string &owner) : m_hEvent(true), m_owner(owner)
 {
@@ -50,6 +50,7 @@ void CDVDMessageQueue::Init()
   m_bInitialized = true;
   m_TimeBack = DVD_NOPTS_VALUE;
   m_TimeFront = DVD_NOPTS_VALUE;
+  m_drain = false;
 }
 
 void CDVDMessageQueue::Flush(CDVDMsg::Message type)
@@ -171,7 +172,7 @@ MsgQueueReturnCode CDVDMessageQueue::Get(CDVDMsg** pMsg, unsigned int iTimeoutIn
   {
     std::list<DVDMessageListItem> &msgs = (priority > 0 || !m_prioMessages.empty()) ? m_prioMessages : m_messages;
 
-    if (!msgs.empty() && msgs.back().priority >= priority)
+    if (!msgs.empty() && (msgs.back().priority >= priority || m_drain))
     {
       DVDMessageListItem& item(msgs.back());
       priority = item.priority;
@@ -243,11 +244,21 @@ unsigned CDVDMessageQueue::GetPacketCount(CDVDMsg::Message type)
 
 void CDVDMessageQueue::WaitUntilEmpty()
 {
+  {
+    CSingleLock lock(m_section);
+    m_drain = true;
+  }
+
   CLog::Log(LOGNOTICE, "CDVDMessageQueue(%s)::WaitUntilEmpty", m_owner.c_str());
-  CDVDMsgGeneralSynchronize* msg = new CDVDMsgGeneralSynchronize(40000, 0);
+  CDVDMsgGeneralSynchronize* msg = new CDVDMsgGeneralSynchronize(40000, SYNCSOURCE_ANY);
   Put(msg->Acquire());
-  msg->Wait(&m_bAbortRequest, 0);
+  msg->Wait(m_bAbortRequest, 0);
   msg->Release();
+
+  {
+    CSingleLock lock(m_section);
+    m_drain = false;
+  }
 }
 
 int CDVDMessageQueue::GetLevel() const
@@ -262,12 +273,12 @@ int CDVDMessageQueue::GetLevel() const
   if (IsDataBased())
     return std::min(100, 100 * m_iDataSize / m_iMaxDataSize);
 
-  int level = std::min(100, MathUtils::round_int(100.0 * m_TimeSize * (m_TimeFront - m_TimeBack) / DVD_TIME_BASE ));
+  int level = std::min(100.0, ceil(100.0 * m_TimeSize * (m_TimeFront - m_TimeBack) / DVD_TIME_BASE ));
 
   // if we added lots of packets with NOPTS, make sure that the queue is not signalled empty
   if (level == 0 && m_iDataSize != 0)
   {
-    CLog::Log(LOGNOTICE, "CDVDMessageQueue::GetLevel() - can't determine level");
+    CLog::Log(LOGDEBUG, "CDVDMessageQueue::GetLevel() - can't determine level");
     return 1;
   }
 

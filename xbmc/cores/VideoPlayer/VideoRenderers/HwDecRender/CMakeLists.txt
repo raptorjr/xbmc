@@ -50,8 +50,8 @@ if(CORE_SYSTEM_NAME STREQUAL android)
                       RendererMediaCodecSurface.h)
 endif()
 
-core_add_library(videorenderers_hwdec)
-
-if(ENABLE_INTERNAL_FFMPEG AND SOURCES)
-  add_dependencies(videorenderers_hwdec ffmpeg)
+# we might want to build on linux systems
+# with ENABLE_VDPAU=OFF and ENABLE_VAAPI=OFF
+if(SOURCES)
+  core_add_library(videorenderers_hwdec)
 endif()

@@ -42,10 +42,12 @@
 #include FT_OUTLINE_H
 #include FT_STROKER_H
 
-#define USE_RELEASE_LIBS
-
 #ifdef TARGET_WINDOWS
-#pragma comment(lib, "freetype246MT.lib")
+#ifdef NDEBUG
+#pragma comment(lib, "freetype.lib")
+#else
+#pragma comment(lib, "freetyped.lib")
+#endif
 #endif
 
 #define CHARS_PER_TEXTURE_LINE 20 // number of characters to cache per texture line
@@ -613,7 +615,7 @@ CGUIFontTTFBase::Character* CGUIFontTTFBase::GetCharacter(character_t chr)
   if (letter < 255)
   {
     character_t ch = (style << 8) | letter;
-    if (m_charquick[ch])
+    if (ch < LOOKUPTABLE_SIZE && m_charquick[ch])
       return m_charquick[ch];
   }
 

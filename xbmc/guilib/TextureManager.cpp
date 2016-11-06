@@ -256,6 +256,9 @@ bool CGUITextureManager::HasTexture(const std::string &textureName, std::string 
   if (size) *size = 0;
   if (path) *path = textureName;
 
+  if (textureName.empty())
+    return false;
+
   if (!CanLoad(textureName))
     return false;
 
@@ -293,6 +296,10 @@ const CTextureArray& CGUITextureManager::Load(const std::string& strTextureName,
   static CTextureArray emptyTexture;
   int bundle = -1;
   int size = 0;
+
+  if (strTextureName.empty())
+    return emptyTexture;
+
   if (!HasTexture(strTextureName, &strPath, &bundle, &size))
     return emptyTexture;
 
@@ -539,8 +546,9 @@ void CGUITextureManager::Cleanup()
     delete pMap;
     i = m_vecTextures.erase(i);
   }
-  for (int i = 0; i < 2; i++)
-    m_TexBundle[i] = CTextureBundle();
+
+  m_TexBundle[0] = CTextureBundle(true);
+  m_TexBundle[1] = CTextureBundle();
   FreeUnusedTextures();
 }
 
@@ -624,8 +632,7 @@ std::string CGUITextureManager::GetTexturePath(const std::string &textureName, b
     CSingleLock lock(m_section);
     for (std::vector<std::string>::iterator it = m_texturePaths.begin(); it != m_texturePaths.end(); ++it)
     {
-      std::string path = URIUtils::AddFileToFolder(it->c_str(), "media");
-      path = URIUtils::AddFileToFolder(path, textureName);
+      std::string path = URIUtils::AddFileToFolder(it->c_str(), "media", textureName);
       if (directory)
       {
         if (XFILE::CDirectory::Exists(path))
@@ -638,6 +645,8 @@ std::string CGUITextureManager::GetTexturePath(const std::string &textureName, b
       }
     }
   }
+
+  CLog::Log(LOGERROR, "CGUITextureManager::GetTexturePath: could not find texture '%s'", textureName.c_str());
   return "";
 }
 

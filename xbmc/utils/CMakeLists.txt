@@ -2,13 +2,12 @@ set(SOURCES ActorProtocol.cpp
             AlarmClock.cpp
             AliasShortcutUtils.cpp
             Archive.cpp
-            AsyncFileCopy.cpp
             auto_buffer.cpp
             Base64.cpp
             BitstreamConverter.cpp
             BitstreamStats.cpp
             BooleanLogic.cpp
-            CharsetConverter.cpp 
+            CharsetConverter.cpp
             CharsetDetection.cpp
             CPUInfo.cpp
             Crc32.cpp
@@ -72,14 +71,12 @@ set(SOURCES ActorProtocol.cpp
             Vector.cpp
             Weather.cpp
             XBMCTinyXML.cpp
-            XMLUtils.cpp
-            XSLTUtils.cpp)
+            XMLUtils.cpp)
 
 set(HEADERS ActorProtocol.h
             AlarmClock.h
             AliasShortcutUtils.h
             Archive.h
-            AsyncFileCopy.h
             auto_buffer.h
             Base64.h
             BitstreamConverter.h
@@ -92,6 +89,8 @@ set(HEADERS ActorProtocol.h
             DatabaseUtils.h
             EndianSwap.h
             Environment.h
+            EventStream.h
+            EventStreamDetail.h
             Fanart.h
             FileOperationJob.h
             FileUtils.h
@@ -160,8 +159,12 @@ set(HEADERS ActorProtocol.h
             Vector.h
             Weather.h
             XBMCTinyXML.h
-            XMLUtils.h
-            XSLTUtils.h)
+            XMLUtils.h)
+
+if(XSLT_FOUND)
+  list(APPEND SOURCES XSLTUtils.cpp)
+  list(APPEND HEADERS XSLTUtils.h)
+endif()
 
 # The large map trips the clang optimizer
 if(CMAKE_CXX_COMPILER_ID STREQUAL Clang)
@@ -173,11 +176,9 @@ if(NOT CORE_SYSTEM_NAME STREQUAL windows)
                       GLUtils.cpp)
   list(APPEND HEADERS CryptThreading.h
                       GLUtils.h)
-else()
-  set_source_files_properties(fstrcmp.c PROPERTIES LANGUAGE CXX)
 endif()
 
-if(AML_FOUND)
+if(CORE_SYSTEM_NAME STREQUAL android OR AML_FOUND)
   list(APPEND SOURCES AMLUtils.cpp
                       ScreenshotAML.cpp)
   list(APPEND HEADERS AMLUtils.h
@@ -185,12 +186,9 @@ if(AML_FOUND)
 endif()
 
 core_add_library(utils)
-add_dependencies(utils libcpluff)
 
-if(ENABLE_INTERNAL_FFMPEG)
-  add_dependencies(utils ffmpeg)
-endif()
-
-if(ENABLE_INTERNAL_CROSSGUID)
-  add_dependencies(utils crossguid)
+if(NOT CORE_SYSTEM_NAME STREQUAL windows)
+  if(HAVE_SSE2)
+    target_compile_options(${CORE_LIBRARY} PRIVATE -msse2)
+  endif()
 endif()

@@ -512,6 +512,9 @@ bool CGUIMediaWindow::OnMessage(CGUIMessage& message)
       if (message.GetParam2() == PLUGIN_REFRESH_DELAY)
       {
         Refresh();
+        SetInitialVisibility();
+        RestoreControlStates();
+        SetInitialVisibility();
         return true;
       }
     }
@@ -653,16 +656,7 @@ bool CGUIMediaWindow::GetDirectory(const std::string &strDirectory, CFileItemLis
   CLog::Log(LOGDEBUG,"  ParentPath = [%s]", CURL::GetRedacted(strParentPath).c_str());
 
   if (pathToUrl.IsProtocol("plugin"))
-  {
-    //Record usage
-    auto& addonId = pathToUrl.GetHostName();
-    auto time = CDateTime::GetCurrentDateTime();
-    CJobManager::GetInstance().Submit([addonId, time](){
-      CAddonDatabase db;
-      if (db.Open())
-        db.SetLastUsed(addonId, time);
-    });
-  }
+    CAddonMgr::GetInstance().UpdateLastUsed(pathToUrl.GetHostName());
 
   // see if we can load a previously cached folder
   CFileItemList cachedItems(strDirectory);
@@ -678,7 +672,7 @@ bool CGUIMediaWindow::GetDirectory(const std::string &strDirectory, CFileItemLis
       SetupShares();
     
     CFileItemList dirItems;
-    if (!m_rootDir.GetDirectory(pathToUrl, dirItems))
+    if (!m_rootDir.GetDirectory(pathToUrl, dirItems, UseFileDirectories()))
       return false;
     
     // assign fetched directory items
@@ -696,7 +690,14 @@ bool CGUIMediaWindow::GetDirectory(const std::string &strDirectory, CFileItemLis
   // update the view state's reference to the current items
   m_guiState.reset(CGUIViewState::GetViewState(GetID(), items));
 
-  if (m_guiState.get() && !m_guiState->HideParentDirItems() && items.GetPath() != GetRootPath())
+  bool bHideParent = false;
+
+  if (m_guiState && m_guiState->HideParentDirItems())
+    bHideParent = true;
+  if (items.GetPath() == GetRootPath())
+    bHideParent = true;
+
+  if (!bHideParent)
   {
     CFileItemPtr pItem(new CFileItem(".."));
     pItem->SetPath(strParentPath);
@@ -930,15 +931,8 @@ bool CGUIMediaWindow::OnClick(int iItem, const std::string &player)
     {
       if (!CScriptInvocationManager::GetInstance().Stop(addon->LibPath()))
       {
-        auto time = CDateTime::GetCurrentDateTime();
-
+        CAddonMgr::GetInstance().UpdateLastUsed(addon->ID());
         CScriptInvocationManager::GetInstance().ExecuteAsync(addon->LibPath(), addon);
-
-        CJobManager::GetInstance().Submit([addon, time](){
-          CAddonDatabase db;
-          if (db.Open())
-            db.SetLastUsed(addon->ID(), time);
-        });
       }
       return true;
     }
@@ -1269,7 +1263,7 @@ void CGUIMediaWindow::SetHistoryForPath(const std::string& strDirectory)
     URIUtils::RemoveSlashAtEnd(strPath);
 
     CFileItemList items;
-    m_rootDir.GetDirectory(CURL(), items);
+    m_rootDir.GetDirectory(CURL(), items, UseFileDirectories());
 
     m_history.ClearPathHistory();
 
@@ -1912,7 +1906,7 @@ bool CGUIMediaWindow::GetAdvanceFilteredItems(CFileItemList &items)
   std::map<std::string, CFileItemPtr> lookup;
   for (int j = 0; j < resultItems.Size(); j++)
   {
-    std::string itemPath = RemoveParameterFromPath(resultItems[j]->GetPath(), "filter");
+    std::string itemPath = CURL(resultItems[j]->GetPath()).GetWithoutOptions();
     StringUtils::ToLower(itemPath);
 
     lookup[itemPath] = resultItems[j];
@@ -1933,7 +1927,7 @@ bool CGUIMediaWindow::GetAdvanceFilteredItems(CFileItemList &items)
     // check if the item is part of the resultItems list
     // by comparing their paths (but ignoring any special
     // options because they differ from filter to filter)
-    std::string path = RemoveParameterFromPath(item->GetPath(), "filter");
+    std::string path = CURL(item->GetPath()).GetWithoutOptions();
     StringUtils::ToLower(path);
 
     std::map<std::string, CFileItemPtr>::iterator itItem = lookup.find(path);
@@ -2006,9 +2000,10 @@ bool CGUIMediaWindow::Filter(bool advanced /* = true */)
 
 std::string CGUIMediaWindow::GetStartFolder(const std::string &dir)
 {
-  std::string lower(dir); StringUtils::ToLower(lower);
-  if (lower == "$root" || lower == "root")
+  if (StringUtils::EqualsNoCase(dir, "$root") ||
+      StringUtils::EqualsNoCase(dir, "root"))
     return "";
+
   return dir;
 }
 

@@ -11,6 +11,7 @@ set(SOURCES Addon.cpp
             AudioEncoder.cpp
             ContextMenuAddon.cpp
             ContextMenus.cpp
+            FilesystemInstaller.cpp
             GUIDialogAddonInfo.cpp
             GUIDialogAddonSettings.cpp
             GUIViewStateAddonBrowser.cpp
@@ -32,6 +33,7 @@ set(SOURCES Addon.cpp
 
 set(HEADERS Addon.h
             AddonBuilder.h
+            AddonEvents.h
             BinaryAddonCache.h
             AddonDatabase.h
             AddonDll.h
@@ -48,6 +50,7 @@ set(HEADERS Addon.h
             DllAudioDSP.h
             DllLibCPluff.h
             DllPVRClient.h
+            FilesystemInstaller.h
             GUIDialogAddonInfo.h
             GUIDialogAddonSettings.h
             GUIViewStateAddonBrowser.h
@@ -70,8 +73,3 @@ set(HEADERS Addon.h
             Webinterface.h)
 
 core_add_library(addons)
-add_dependencies(addons libcpluff)
-
-if(ENABLE_INTERNAL_FFMPEG)
-  add_dependencies(addons ffmpeg)
-endif()

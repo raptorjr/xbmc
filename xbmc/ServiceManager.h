@@ -21,6 +21,7 @@
 #pragma once
 
 #include <memory>
+#include "platform/Platform.h"
 
 namespace ADDON {
 class CAddonMgr;
@@ -41,7 +42,14 @@ namespace PVR
 class CPVRManager;
 }
 
+namespace PLAYLIST
+{
+  class CPlayListPlayer;
+}
+
+class CContextMenuManager;
 class XBPython;
+class CDataCacheCore;
 
 class CServiceManager
 {
@@ -56,12 +64,33 @@ public:
   XBPython& GetXBPython();
   PVR::CPVRManager& GetPVRManager();
   ActiveAE::CActiveAEDSP& GetADSPManager();
+  CContextMenuManager& GetContextMenuManager();
+  CDataCacheCore& GetDataCacheCore();
+  /**\brief Get the platform object. This is save to be called after Init1() was called
+   */
+  CPlatform& GetPlatform();
+
+  PLAYLIST::CPlayListPlayer& GetPlaylistPlayer();
 
 protected:
+  struct delete_dataCacheCore
+  {
+    void operator()(CDataCacheCore *p) const;
+  };
+
+  struct delete_contextMenuManager
+  {
+    void operator()(CContextMenuManager *p) const;
+  };
+
   std::unique_ptr<ADDON::CAddonMgr> m_addonMgr;
   std::unique_ptr<ADDON::CBinaryAddonCache> m_binaryAddonCache;
   std::unique_ptr<ANNOUNCEMENT::CAnnouncementManager> m_announcementManager;
   std::unique_ptr<XBPython> m_XBPython;
   std::unique_ptr<PVR::CPVRManager> m_PVRManager;
   std::unique_ptr<ActiveAE::CActiveAEDSP> m_ADSPManager;
+  std::unique_ptr<CContextMenuManager, delete_contextMenuManager> m_contextMenuManager;
+  std::unique_ptr<CDataCacheCore, delete_dataCacheCore> m_dataCacheCore;
+  std::unique_ptr<CPlatform> m_Platform;
+  std::unique_ptr<PLAYLIST::CPlayListPlayer> m_playlistPlayer;
 };

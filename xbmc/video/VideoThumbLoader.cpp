@@ -86,6 +86,9 @@ bool CThumbExtractor::operator==(const CJob* job) const
 bool CThumbExtractor::DoWork()
 {
   if (m_item.IsLiveTV()
+  // Due to a pvr addon api design flaw (no support for multiple concurrent streams
+  // per addon instance), pvr recording thumbnail extraction does not work (reliably).
+  ||  m_item.IsPVRRecording()
   ||  URIUtils::IsUPnP(m_item.GetPath())
   ||  URIUtils::IsBluray(m_item.GetPath())
   ||  m_item.IsBDFile()
@@ -463,7 +466,7 @@ bool CVideoThumbLoader::FillLibraryArt(CFileItem &item)
     if (tag.m_type == MediaTypeEpisode || tag.m_type == MediaTypeSeason)
     {
       // For episodes and seasons, we want to set fanart for that of the show
-      if (!item.HasArt("fanart") && tag.m_iIdShow >= 0)
+      if (!item.HasArt("tvshow.fanart") && tag.m_iIdShow >= 0)
       {
         ArtCache::const_iterator i = m_showArt.find(tag.m_iIdShow);
         if (i == m_showArt.end())

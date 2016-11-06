@@ -14,9 +14,6 @@ if(NOT ZIPALIGN_EXECUTABLE)
 endif()
 
 # Configure files into packaging environment.
-if(BREAKPAD_FOUND)
-  set(USE_BREAKPAD 1)
-endif()
 configure_file(${CORE_SOURCE_DIR}/tools/android/packaging/Makefile.in
                ${CMAKE_BINARY_DIR}/tools/android/packaging/Makefile @ONLY)
 configure_file(${CORE_SOURCE_DIR}/tools/android/packaging/apksign
@@ -49,6 +46,7 @@ add_custom_target(bundle
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CORE_SOURCE_DIR}/tools/android/packaging/xbmc/res
                                                ${CMAKE_BINARY_DIR}/tools/android/packaging/xbmc/res
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${DEPENDS_PATH}/lib/python2.7 ${libdir}/python2.7
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${DEPENDS_PATH}/share/${APP_NAME_LC} ${datadir}/${APP_NAME_LC}
     COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${APP_NAME_LC}>
                                      ${libdir}/${APP_NAME_LC}/$<TARGET_FILE_NAME:${APP_NAME_LC}>)
 add_dependencies(bundle ${APP_NAME_LC})
@@ -60,13 +58,19 @@ function(add_bundle_file file destination relative)
     file(REMOVE ${CMAKE_BINARY_DIR}/${CORE_BUILD_DIR}/BundleFiles.cmake)
     add_custom_target(bundle_files COMMAND ${CMAKE_COMMAND} -P ${CMAKE_BINARY_DIR}/${CORE_BUILD_DIR}/BundleFiles.cmake)
     add_dependencies(bundle bundle_files)
-    add_dependencies(bundle_files export-files pack-skins wrap-libraries generate_json_header)
   endif()
 
   string(REPLACE "${relative}/" "" outfile ${file})
+  get_filename_component(file ${file} REALPATH)
   get_filename_component(outdir ${outfile} DIRECTORY)
   file(APPEND ${CMAKE_BINARY_DIR}/${CORE_BUILD_DIR}/BundleFiles.cmake
        "file(COPY \"${file}\" DESTINATION \"${destination}/${outdir}\")\n")
+  if(file MATCHES "\\.so\\..+$")
+    get_filename_component(srcfile "${file}" NAME)
+    string(REGEX REPLACE "\\.so\\..+$" "\.so" destfile ${srcfile})
+    file(APPEND ${CMAKE_BINARY_DIR}/${CORE_BUILD_DIR}/BundleFiles.cmake
+         "file(RENAME \"${destination}/${outdir}/${srcfile}\" \"${destination}/${outdir}/${destfile}\")\n")
+  endif()
 endfunction()
 
 # Copy files into prefix
@@ -75,8 +79,8 @@ foreach(file IN LISTS XBT_FILES install_data)
   add_bundle_file(${CMAKE_BINARY_DIR}/${file} ${datarootdir}/${APP_NAME_LC} ${CMAKE_BINARY_DIR})
 endforeach()
 
-foreach(file IN LISTS WRAP_FILES)
-  add_bundle_file(${CMAKE_BINARY_DIR}/${file} ${libdir}/${APP_NAME_LC} ${CMAKE_BINARY_DIR})
+foreach(library IN LISTS LIBRARY_FILES)
+  add_bundle_file(${library} ${libdir}/${APP_NAME_LC} ${CMAKE_BINARY_DIR})
 endforeach()
 
 foreach(lib IN LISTS required_dyload dyload_optional ITEMS Shairplay)
@@ -87,6 +91,7 @@ foreach(lib IN LISTS required_dyload dyload_optional ITEMS Shairplay)
   endif()
 endforeach()
 add_bundle_file(${SMBCLIENT_LIBRARY} ${libdir} "")
+add_bundle_file(${DEPENDS_PATH}/lib/librtmp.so ${libdir} "")
 
 # Main targets from Makefile.in
 if(CPU MATCHES i686)
@@ -97,7 +102,7 @@ foreach(target apk obb apk-unsigned apk-obb apk-obb-unsigned apk-noobb apk-clean
   add_custom_target(${target}
       COMMAND PATH=${NATIVEPREFIX}/bin:$ENV{PATH} ${CMAKE_MAKE_PROGRAM}
               -C ${CMAKE_BINARY_DIR}/tools/android/packaging
-              XBMCROOT=${CORE_SOURCE_DIR}
+              CORE_SOURCE_DIR=${CORE_SOURCE_DIR}
               CC=${CMAKE_C_COMPILER}
               CPU=${CPU}
               ARCH=${ARCH}

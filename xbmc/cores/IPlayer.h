@@ -85,6 +85,7 @@ enum IPlayerSubtitleCapabilities
 
 struct SPlayerAudioStreamInfo
 {
+  bool valid;
   int bitrate;
   int channels;
   int samplerate;
@@ -95,6 +96,7 @@ struct SPlayerAudioStreamInfo
 
   SPlayerAudioStreamInfo()
   {
+    valid = false;
     bitrate = 0;
     channels = 0;
     samplerate = 0;
@@ -110,6 +112,7 @@ struct SPlayerSubtitleStreamInfo
 
 struct SPlayerVideoStreamInfo
 {
+  bool valid;
   int bitrate;
   float videoAspectRatio;
   int height;
@@ -123,6 +126,7 @@ struct SPlayerVideoStreamInfo
 
   SPlayerVideoStreamInfo()
   {
+    valid = false;
     bitrate = 0;
     videoAspectRatio = 1.0f;
     height = 0;
@@ -130,29 +134,19 @@ struct SPlayerVideoStreamInfo
   }
 };
 
-enum EDEINTERLACEMODE
-{
-  VS_DEINTERLACEMODE_OFF=0,
-  VS_DEINTERLACEMODE_AUTO=1,
-  VS_DEINTERLACEMODE_FORCE=2
-};
-
 enum EINTERLACEMETHOD
 {
-  VS_INTERLACEMETHOD_NONE=0, // Legacy
+  VS_INTERLACEMETHOD_NONE=0,
   VS_INTERLACEMETHOD_AUTO=1,
   VS_INTERLACEMETHOD_RENDER_BLEND=2,
 
-  VS_INTERLACEMETHOD_RENDER_WEAVE_INVERTED=3,
   VS_INTERLACEMETHOD_RENDER_WEAVE=4,
 
-  VS_INTERLACEMETHOD_RENDER_BOB_INVERTED=5,
   VS_INTERLACEMETHOD_RENDER_BOB=6,
 
   VS_INTERLACEMETHOD_DEINTERLACE=7,
 
   VS_INTERLACEMETHOD_VDPAU_BOB=8,
-  VS_INTERLACEMETHOD_INVERSE_TELECINE=9,
 
   VS_INTERLACEMETHOD_VDPAU_INVERSE_TELECINE=11,
   VS_INTERLACEMETHOD_VDPAU_TEMPORAL=12,
@@ -160,8 +154,6 @@ enum EINTERLACEMETHOD
   VS_INTERLACEMETHOD_VDPAU_TEMPORAL_SPATIAL=14,
   VS_INTERLACEMETHOD_VDPAU_TEMPORAL_SPATIAL_HALF=15,
   VS_INTERLACEMETHOD_DEINTERLACE_HALF=16,
-
-  VS_INTERLACEMETHOD_AUTO_ION = 21,
 
   VS_INTERLACEMETHOD_VAAPI_BOB = 22,
   VS_INTERLACEMETHOD_VAAPI_MADI = 23,
@@ -173,7 +165,10 @@ enum EINTERLACEMETHOD
   VS_INTERLACEMETHOD_MMAL_BOB_HALF = 28,
 
   VS_INTERLACEMETHOD_IMX_FASTMOTION = 29,
-  VS_INTERLACEMETHOD_IMX_FASTMOTION_DOUBLE = 30,
+  VS_INTERLACEMETHOD_IMX_ADVMOTION = 30,
+  VS_INTERLACEMETHOD_IMX_ADVMOTION_HALF = 31,
+
+  VS_INTERLACEMETHOD_DXVA_AUTO = 32,
 
   VS_INTERLACEMETHOD_MAX // do not use and keep as last enum value.
 };
@@ -228,7 +223,9 @@ enum ViewMode {
   ViewModeStretch16x9,
   ViewModeOriginal,
   ViewModeCustom,
-  ViewModeStretch16x9Nonlin
+  ViewModeStretch16x9Nonlin,
+  ViewModeZoom120Width,
+  ViewModeZoom110Width
 };
 
 class IPlayer
@@ -244,7 +241,6 @@ public:
   virtual bool IsPlaying() const { return false;}
   virtual bool CanPause() { return true; };
   virtual void Pause() = 0;
-  virtual bool IsPaused() const = 0;
   virtual bool HasVideo() const = 0;
   virtual bool HasAudio() const = 0;
   virtual bool HasRDS() const { return false; }
@@ -257,7 +253,6 @@ public:
   virtual float GetCachePercentage(){ return 0;}
   virtual void SetMute(bool bOnOff){}
   virtual void SetVolume(float volume){}
-  virtual bool ControlsVolume(){ return false;}
   virtual void SetDynamicRangeCompression(long drc){}
   virtual bool CanRecord() { return false;};
   virtual bool IsRecording() { return false;};
@@ -334,7 +329,10 @@ public:
   virtual void SetTotalTime(int64_t time) { }
   virtual int GetSourceBitrate(){ return 0;}
   virtual bool GetStreamDetails(CStreamDetails &details){ return false;}
-  virtual void ToFFRW(int iSpeed = 0){};
+  virtual void SetSpeed(float speed) = 0;
+  virtual float GetSpeed() = 0;
+  virtual bool SupportsTempo() { return false; }
+
   // Skip to next track/item inside the current media (if supported).
   virtual bool SkipNext(){return false;}
 
@@ -357,28 +355,6 @@ public:
 
   virtual bool SwitchChannel(const PVR::CPVRChannelPtr &channel) { return false; }
 
-  // Note: the following "OMX" methods are deprecated and will be removed in the future
-  // They should be handled by the video renderer, not the player
-  /*!
-   \brief If the player uses bypass mode, define its rendering capabilities
-   */
-  virtual void OMXGetRenderFeatures(std::vector<int> &renderFeatures) {};
-  /*!
-   \brief If the player uses bypass mode, define its deinterlace algorithms
-   */
-  virtual void OMXGetDeinterlaceMethods(std::vector<int> &deinterlaceMethods) {};
-  /*!
-   \brief If the player uses bypass mode, define how deinterlace is set
-   */
-  virtual void OMXGetDeinterlaceModes(std::vector<int> &deinterlaceModes) {};
-  /*!
-   \brief If the player uses bypass mode, define its scaling capabilities
-   */
-  virtual void OMXGetScalingMethods(std::vector<int> &scalingMethods) {};
-  /*!
-   \brief define the audio capabilities of the player (default=all)
-   */
-
   virtual void GetAudioCapabilities(std::vector<int> &audioCaps) { audioCaps.assign(1,IPC_AUD_ALL); };
   /*!
    \brief define the subtitle capabilities of the player
@@ -389,8 +365,6 @@ public:
    \breif hook into render loop of render thread
    */
   virtual void FrameMove() {};
-
-  virtual bool HasFrame() { return false; };
 
   virtual void Render(bool clear, uint32_t alpha = 255, bool gui = true) {};
 
@@ -408,8 +382,8 @@ public:
 
   virtual bool IsRenderingVideoLayer() { return false; };
 
-  virtual bool Supports(EDEINTERLACEMODE mode) { return false; };
   virtual bool Supports(EINTERLACEMETHOD method) { return false; };
+  virtual EINTERLACEMETHOD GetDeinterlacingMethodDefault() { return EINTERLACEMETHOD::VS_INTERLACEMETHOD_NONE; }
   virtual bool Supports(ESCALINGMETHOD method) { return false; };
   virtual bool Supports(ERENDERFEATURE feature) { return false; };
 

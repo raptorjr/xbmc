@@ -33,7 +33,7 @@
 #define AUDIO_DECODE_OUTPUT_BUFFER (32*1024)
 static const char rounded_up_channels_shift[] = {0,0,1,2,2,3,3,3,3};
 
-COMXAudioCodecOMX::COMXAudioCodecOMX()
+COMXAudioCodecOMX::COMXAudioCodecOMX(CProcessInfo &processInfo) : m_processInfo(processInfo)
 {
   m_pBufferOutput = NULL;
   m_iBufferOutputAlloced = 0;
@@ -134,6 +134,7 @@ bool COMXAudioCodecOMX::Open(CDVDStreamInfo &hints)
 
   m_iSampleFormat = AV_SAMPLE_FMT_NONE;
   m_desiredSampleFormat = m_pCodecContext->sample_fmt == AV_SAMPLE_FMT_S16 ? AV_SAMPLE_FMT_S16 : AV_SAMPLE_FMT_FLTP;
+  m_processInfo.SetAudioDecoderName(m_pCodecContext->codec->name);
   return true;
 }
 
@@ -151,6 +152,11 @@ int COMXAudioCodecOMX::Decode(BYTE* pData, int iSize, double dts, double pts)
   if (!m_pCodecContext) return -1;
 
   AVPacket avpkt;
+  if (!m_iBufferOutputUsed)
+  {
+    m_dts = dts;
+    m_pts = pts;
+  }
   if (m_bGotFrame)
     return 0;
   av_init_packet(&avpkt);
@@ -181,11 +187,6 @@ int COMXAudioCodecOMX::Decode(BYTE* pData, int iSize, double dts, double pts)
   }
 
   m_bGotFrame = true;
-  if (!m_iBufferOutputUsed)
-  {
-    m_dts = dts;
-    m_pts = pts;
-  }
   return iBytesUsed;
 }
 

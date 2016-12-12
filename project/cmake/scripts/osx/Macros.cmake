@@ -2,7 +2,7 @@ function(core_link_library lib wraplib)
   if(CMAKE_GENERATOR MATCHES "Unix Makefiles" OR CMAKE_GENERATOR STREQUAL Ninja)
     set(wrapper_obj cores/dll-loader/exports/CMakeFiles/wrapper.dir/wrapper.c.o)
   elseif(CMAKE_GENERATOR MATCHES "Xcode")
-    set(wrapper_obj cores/dll-loader/exports/kodi.build/$(CONFIGURATION)/wrapper.build/Objects-$(CURRENT_VARIANT)/$(CURRENT_ARCH)/wrapper.o)
+    set(wrapper_obj cores/dll-loader/exports/kodi.build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/wrapper.build/Objects-$(CURRENT_VARIANT)/$(CURRENT_ARCH)/wrapper.o)
   else()
     message(FATAL_ERROR "Unsupported generator in core_link_library")
   endif()
@@ -17,6 +17,13 @@ function(core_link_library lib wraplib)
     set(link_lib $<TARGET_FILE:${lib}>)
     set(check_arg ${ARGV2})
     set(data_arg  ${ARGV3})
+
+    # iOS: EFFECTIVE_PLATFORM_NAME is not resolved
+    # http://public.kitware.com/pipermail/cmake/2016-March/063049.html
+    if(CORE_SYSTEM_NAME STREQUAL ios AND CMAKE_GENERATOR STREQUAL Xcode)
+      get_target_property(dir ${lib} BINARY_DIR)
+      set(link_lib ${dir}/${CORE_BUILD_CONFIG}/${CMAKE_STATIC_LIBRARY_PREFIX}${lib}${CMAKE_STATIC_LIBRARY_SUFFIX})
+    endif()
   else()
     set(target ${ARGV2})
     set(link_lib ${lib})
@@ -38,7 +45,7 @@ function(core_link_library lib wraplib)
   # We can't simply pass the linker flags to the args section of the custom command
   # because cmake will add quotes around it (and the linker will fail due to those).
   # We need to do this handstand first ...
-  separate_arguments(CUSTOM_COMMAND_ARGS_LDFLAGS UNIX_COMMAND "${CMAKE_SHARED_LINKER_FLAGS}")
+  string(REPLACE " " ";" CUSTOM_COMMAND_ARGS_LDFLAGS ${CMAKE_SHARED_LINKER_FLAGS})
 
   add_custom_command(OUTPUT ${wraplib}-${ARCH}${extension}
                      COMMAND ${CMAKE_COMMAND} -E make_directory ${dir}

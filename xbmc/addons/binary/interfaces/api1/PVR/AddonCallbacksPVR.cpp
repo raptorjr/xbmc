@@ -42,11 +42,10 @@ using namespace ADDON;
 using namespace PVR;
 using namespace EPG;
 
-namespace V1
-{
 namespace KodiAPI
 {
-
+namespace V1
+{
 namespace PVR
 {
 
@@ -345,7 +344,7 @@ void CAddonCallbacksPVR::PVRConnectionStateChange(void* addonData, const char* s
   if (strMessage != nullptr)
     msg = strMessage;
 
-  g_PVRManager.ConnectionStateChange(client->GetID(), std::string(strConnectionString), newState, msg);
+  g_PVRManager.ConnectionStateChange(client, std::string(strConnectionString), newState, msg);
 }
 
 typedef struct EpgEventStateChange
@@ -427,6 +426,5 @@ void CAddonCallbacksPVR::PVREpgEventStateChange(void* addonData, EPG_TAG* tag, u
 }
 
 } /* namespace PVR */
-
-} /* namespace KodiAPI */
 } /* namespace V1 */
+} /* namespace KodiAPI */

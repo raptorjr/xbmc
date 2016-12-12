@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT([kodi], [16.9.806], [http://trac.kodi.tv])
+AC_INIT([kodi], [17.9.701], [http://trac.kodi.tv])
 AC_CONFIG_HEADERS([xbmc/config.h])
 AH_TOP([#pragma once])
 m4_include([m4/ax_prog_cc_for_build.m4])
@@ -1453,9 +1453,9 @@ if test "x$use_libcec" != "xno"; then
   # libcec is dyloaded, so we need to check for its headers and link any depends.
   if test "x$use_libcec" != "xno"; then
     if test "x$use_libcec" != "xauto"; then
-      PKG_CHECK_MODULES([CEC],[libcec >= 3.0.0],,[use_libcec="no";AC_MSG_ERROR($libcec_disabled)])
+      PKG_CHECK_MODULES([CEC],[libcec >= 4.0.0],,[use_libcec="no";AC_MSG_ERROR($libcec_disabled)])
     else
-      PKG_CHECK_MODULES([CEC],[libcec >= 3.0.0],,[use_libcec="no";AC_MSG_RESULT($libcec_disabled)])
+      PKG_CHECK_MODULES([CEC],[libcec >= 4.0.0],,[use_libcec="no";AC_MSG_RESULT($libcec_disabled)])
     fi
 
     if test "x$use_libcec" != "xno"; then
@@ -2173,6 +2173,7 @@ OUTPUT_FILES="Makefile \
     xbmc/cores/paplayer/Makefile \
     xbmc/cores/omxplayer/Makefile \
     xbmc/cores/playercorefactory/Makefile \
+    xbmc/cores/RetroPlayer/Makefile \
     xbmc/messaging/Makefile \
     xbmc/messaging/helpers/Makefile \
     xbmc/guilib/Makefile \
@@ -2194,10 +2195,9 @@ OUTPUT_FILES="Makefile \
     lib/addons/library.kodi.adsp/Makefile \
     lib/addons/library.kodi.audioengine/Makefile \
     lib/addons/library.xbmc.codec/Makefile \
+    lib/addons/library.kodi.game/Makefile \
     lib/addons/library.kodi.guilib/Makefile \
     lib/addons/library.kodi.peripheral/Makefile \
-    lib/addons/library.xbmc.pvr/Makefile \
-    lib/addons/library.kodi.inputstream/Makefile \
     tools/Linux/kodi.sh \
     tools/Linux/kodi-standalone.sh \
     tools/Linux/kodi-xsession.desktop \

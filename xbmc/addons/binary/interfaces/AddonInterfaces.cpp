@@ -27,6 +27,7 @@
 #include "addons/binary/interfaces/api1/AudioDSP/AddonCallbacksAudioDSP.h"
 #include "addons/binary/interfaces/api1/AudioEngine/AddonCallbacksAudioEngine.h"
 #include "addons/binary/interfaces/api1/Codec/AddonCallbacksCodec.h"
+#include "addons/binary/interfaces/api1/Game/AddonCallbacksGame.h"
 #include "addons/binary/interfaces/api1/GUI/AddonCallbacksGUI.h"
 #include "addons/binary/interfaces/api1/GUI/AddonGUIWindow.h"
 #include "addons/binary/interfaces/api1/InputStream/AddonCallbacksInputStream.h"
@@ -51,7 +52,8 @@ CAddonInterfaces::CAddonInterfaces(CAddon* addon)
     m_helperADSP(nullptr),
     m_helperCODEC(nullptr),
     m_helperInputStream(nullptr),
-    m_helperPeripheral(nullptr)
+    m_helperPeripheral(nullptr),
+    m_helperGame(nullptr)
 {
   m_callbacks->libBasePath                  = strdup(CSpecialProtocol::TranslatePath("special://xbmcbinaddons").c_str());
   m_callbacks->addonData                    = this;
@@ -72,18 +74,21 @@ CAddonInterfaces::CAddonInterfaces(CAddon* addon)
   m_callbacks->INPUTSTREAMLib_UnRegisterMe  = CAddonInterfaces::INPUTSTREAMLib_UnRegisterMe;
   m_callbacks->PeripheralLib_RegisterMe     = CAddonInterfaces::PeripheralLib_RegisterMe;
   m_callbacks->PeripheralLib_UnRegisterMe   = CAddonInterfaces::PeripheralLib_UnRegisterMe;
+  m_callbacks->GameLib_RegisterMe           = CAddonInterfaces::GameLib_RegisterMe;
+  m_callbacks->GameLib_UnRegisterMe         = CAddonInterfaces::GameLib_UnRegisterMe;
 }
 
 CAddonInterfaces::~CAddonInterfaces()
 {
-  delete static_cast<V1::KodiAPI::AddOn::CAddonCallbacksAddon*>(m_helperAddOn);
-  delete static_cast<V1::KodiAPI::AudioEngine::CAddonCallbacksAudioEngine*>(m_helperAudioEngine);
-  delete static_cast<V1::KodiAPI::PVR::CAddonCallbacksPVR*>(m_helperPVR);
-  delete static_cast<V1::KodiAPI::GUI::CAddonCallbacksGUI*>(m_helperGUI);
-  delete static_cast<V1::KodiAPI::AudioDSP::CAddonCallbacksADSP*>(m_helperADSP);
-  delete static_cast<V1::KodiAPI::Codec::CAddonCallbacksCodec*>(m_helperCODEC);
-  delete static_cast<V1::KodiAPI::InputStream::CAddonCallbacksInputStream*>(m_helperInputStream);
-  delete static_cast<V1::KodiAPI::Peripheral::CAddonCallbacksPeripheral*>(m_helperPeripheral);
+  delete static_cast<KodiAPI::V1::AddOn::CAddonCallbacksAddon*>(m_helperAddOn);
+  delete static_cast<KodiAPI::V1::AudioEngine::CAddonCallbacksAudioEngine*>(m_helperAudioEngine);
+  delete static_cast<KodiAPI::V1::PVR::CAddonCallbacksPVR*>(m_helperPVR);
+  delete static_cast<KodiAPI::V1::GUI::CAddonCallbacksGUI*>(m_helperGUI);
+  delete static_cast<KodiAPI::V1::AudioDSP::CAddonCallbacksADSP*>(m_helperADSP);
+  delete static_cast<KodiAPI::V1::Codec::CAddonCallbacksCodec*>(m_helperCODEC);
+  delete static_cast<KodiAPI::V1::InputStream::CAddonCallbacksInputStream*>(m_helperInputStream);
+  delete static_cast<KodiAPI::V1::Peripheral::CAddonCallbacksPeripheral*>(m_helperPeripheral);
+  delete static_cast<KodiAPI::V1::Game::CAddonCallbacksGame*>(m_helperGame);
 
   free((char*)m_callbacks->libBasePath);
   delete m_callbacks;
@@ -101,8 +106,8 @@ void* CAddonInterfaces::AddOnLib_RegisterMe(void *addonData)
     return nullptr;
   }
 
-  addon->m_helperAddOn = new V1::KodiAPI::AddOn::CAddonCallbacksAddon(addon->m_addon);
-  return static_cast<V1::KodiAPI::AddOn::CAddonCallbacksAddon*>(addon->m_helperAddOn)->GetCallbacks();
+  addon->m_helperAddOn = new KodiAPI::V1::AddOn::CAddonCallbacksAddon(addon->m_addon);
+  return static_cast<KodiAPI::V1::AddOn::CAddonCallbacksAddon*>(addon->m_helperAddOn)->GetCallbacks();
 }
 
 void CAddonInterfaces::AddOnLib_UnRegisterMe(void *addonData, void *cbTable)
@@ -114,7 +119,7 @@ void CAddonInterfaces::AddOnLib_UnRegisterMe(void *addonData, void *cbTable)
     return;
   }
 
-  delete static_cast<V1::KodiAPI::AddOn::CAddonCallbacksAddon*>(addon->m_helperAddOn);
+  delete static_cast<KodiAPI::V1::AddOn::CAddonCallbacksAddon*>(addon->m_helperAddOn);
   addon->m_helperAddOn = nullptr;
 }
 
@@ -129,8 +134,8 @@ void* CAddonInterfaces::AudioEngineLib_RegisterMe(void *addonData)
     return nullptr;
   }
 
-  addon->m_helperAudioEngine = new V1::KodiAPI::AudioEngine::CAddonCallbacksAudioEngine(addon->m_addon);
-  return static_cast<V1::KodiAPI::AudioEngine::CAddonCallbacksAudioEngine*>(addon->m_helperAudioEngine)->GetCallbacks();
+  addon->m_helperAudioEngine = new KodiAPI::V1::AudioEngine::CAddonCallbacksAudioEngine(addon->m_addon);
+  return static_cast<KodiAPI::V1::AudioEngine::CAddonCallbacksAudioEngine*>(addon->m_helperAudioEngine)->GetCallbacks();
 }
 
 void CAddonInterfaces::AudioEngineLib_UnRegisterMe(void *addonData, void *cbTable)
@@ -142,7 +147,7 @@ void CAddonInterfaces::AudioEngineLib_UnRegisterMe(void *addonData, void *cbTabl
     return;
   }
 
-  delete static_cast<V1::KodiAPI::AudioEngine::CAddonCallbacksAudioEngine*>(addon->m_helperAudioEngine);
+  delete static_cast<KodiAPI::V1::AudioEngine::CAddonCallbacksAudioEngine*>(addon->m_helperAudioEngine);
   addon->m_helperAudioEngine = nullptr;
 }
 /*\_____________________________________________________________________________
@@ -156,8 +161,8 @@ void* CAddonInterfaces::GUILib_RegisterMe(void *addonData)
     return nullptr;
   }
 
-  addon->m_helperGUI = new V1::KodiAPI::GUI::CAddonCallbacksGUI(addon->m_addon);
-  return static_cast<V1::KodiAPI::GUI::CAddonCallbacksGUI*>(addon->m_helperGUI)->GetCallbacks();
+  addon->m_helperGUI = new KodiAPI::V1::GUI::CAddonCallbacksGUI(addon->m_addon);
+  return static_cast<KodiAPI::V1::GUI::CAddonCallbacksGUI*>(addon->m_helperGUI)->GetCallbacks();
 }
 
 void CAddonInterfaces::GUILib_UnRegisterMe(void *addonData, void *cbTable)
@@ -169,7 +174,7 @@ void CAddonInterfaces::GUILib_UnRegisterMe(void *addonData, void *cbTable)
     return;
   }
 
-  delete static_cast<V1::KodiAPI::GUI::CAddonCallbacksGUI*>(addon->m_helperGUI);
+  delete static_cast<KodiAPI::V1::GUI::CAddonCallbacksGUI*>(addon->m_helperGUI);
   addon->m_helperGUI = nullptr;
 }
 /*\_____________________________________________________________________________
@@ -183,8 +188,8 @@ void* CAddonInterfaces::PVRLib_RegisterMe(void *addonData)
     return nullptr;
   }
 
-  addon->m_helperPVR = new V1::KodiAPI::PVR::CAddonCallbacksPVR(addon->m_addon);
-  return static_cast<V1::KodiAPI::PVR::CAddonCallbacksPVR*>(addon->m_helperPVR)->GetCallbacks();
+  addon->m_helperPVR = new KodiAPI::V1::PVR::CAddonCallbacksPVR(addon->m_addon);
+  return static_cast<KodiAPI::V1::PVR::CAddonCallbacksPVR*>(addon->m_helperPVR)->GetCallbacks();
 }
 
 void CAddonInterfaces::PVRLib_UnRegisterMe(void *addonData, void *cbTable)
@@ -196,7 +201,7 @@ void CAddonInterfaces::PVRLib_UnRegisterMe(void *addonData, void *cbTable)
     return;
   }
 
-  delete static_cast<V1::KodiAPI::PVR::CAddonCallbacksPVR*>(addon->m_helperPVR);
+  delete static_cast<KodiAPI::V1::PVR::CAddonCallbacksPVR*>(addon->m_helperPVR);
   addon->m_helperPVR = nullptr;
 }
 /*\_____________________________________________________________________________
@@ -210,8 +215,8 @@ void* CAddonInterfaces::ADSPLib_RegisterMe(void *addonData)
     return nullptr;
   }
 
-  addon->m_helperADSP = new V1::KodiAPI::AudioDSP::CAddonCallbacksADSP(addon->m_addon);
-  return static_cast<V1::KodiAPI::AudioDSP::CAddonCallbacksADSP*>(addon->m_helperADSP)->GetCallbacks();
+  addon->m_helperADSP = new KodiAPI::V1::AudioDSP::CAddonCallbacksADSP(addon->m_addon);
+  return static_cast<KodiAPI::V1::AudioDSP::CAddonCallbacksADSP*>(addon->m_helperADSP)->GetCallbacks();
 }
 
 void CAddonInterfaces::ADSPLib_UnRegisterMe(void *addonData, void *cbTable)
@@ -223,7 +228,7 @@ void CAddonInterfaces::ADSPLib_UnRegisterMe(void *addonData, void *cbTable)
     return;
   }
 
-  delete static_cast<V1::KodiAPI::AudioDSP::CAddonCallbacksADSP*>(addon->m_helperADSP);
+  delete static_cast<KodiAPI::V1::AudioDSP::CAddonCallbacksADSP*>(addon->m_helperADSP);
   addon->m_helperADSP = nullptr;
 }
 /*\_____________________________________________________________________________
@@ -237,8 +242,8 @@ void* CAddonInterfaces::CodecLib_RegisterMe(void *addonData)
     return nullptr;
   }
 
-  addon->m_helperCODEC = new V1::KodiAPI::Codec::CAddonCallbacksCodec(addon->m_addon);
-  return static_cast<V1::KodiAPI::Codec::CAddonCallbacksCodec*>(addon->m_helperCODEC)->GetCallbacks();
+  addon->m_helperCODEC = new KodiAPI::V1::Codec::CAddonCallbacksCodec(addon->m_addon);
+  return static_cast<KodiAPI::V1::Codec::CAddonCallbacksCodec*>(addon->m_helperCODEC)->GetCallbacks();
 }
 
 void CAddonInterfaces::CodecLib_UnRegisterMe(void *addonData, void *cbTable)
@@ -250,8 +255,35 @@ void CAddonInterfaces::CodecLib_UnRegisterMe(void *addonData, void *cbTable)
     return;
   }
 
-  delete static_cast<V1::KodiAPI::Codec::CAddonCallbacksCodec*>(addon->m_helperCODEC);
+  delete static_cast<KodiAPI::V1::Codec::CAddonCallbacksCodec*>(addon->m_helperCODEC);
   addon->m_helperCODEC = nullptr;
+}
+/*\_____________________________________________________________________________
+\*/
+void* CAddonInterfaces::GameLib_RegisterMe(void *addonData)
+{
+  CAddonInterfaces* addon = static_cast<CAddonInterfaces*>(addonData);
+  if (addon == nullptr)
+  {
+    CLog::Log(LOGERROR, "CAddonInterfaces - %s - called with a null pointer", __FUNCTION__);
+    return nullptr;
+  }
+
+  addon->m_helperGame = new KodiAPI::V1::Game::CAddonCallbacksGame(addon->m_addon);
+  return static_cast<KodiAPI::V1::Game::CAddonCallbacksGame*>(addon->m_helperGame)->GetCallbacks();
+}
+
+void CAddonInterfaces::GameLib_UnRegisterMe(void *addonData, void *cbTable)
+{
+  CAddonInterfaces* addon = static_cast<CAddonInterfaces*>(addonData);
+  if (addon == nullptr)
+  {
+    CLog::Log(LOGERROR, "CAddonInterfaces - %s - called with a null pointer", __FUNCTION__);
+    return;
+  }
+
+  delete static_cast<KodiAPI::V1::Game::CAddonCallbacksGame*>(addon->m_helperGame);
+  addon->m_helperGame = nullptr;
 }
 /*\_____________________________________________________________________________
 \*/
@@ -264,8 +296,8 @@ void* CAddonInterfaces::INPUTSTREAMLib_RegisterMe(void *addonData)
     return nullptr;
   }
 
-  addon->m_helperInputStream = new V1::KodiAPI::InputStream::CAddonCallbacksInputStream(addon->m_addon);
-  return static_cast<V1::KodiAPI::InputStream::CAddonCallbacksInputStream*>(addon->m_helperInputStream)->GetCallbacks();
+  addon->m_helperInputStream = new KodiAPI::V1::InputStream::CAddonCallbacksInputStream(addon->m_addon);
+  return static_cast<KodiAPI::V1::InputStream::CAddonCallbacksInputStream*>(addon->m_helperInputStream)->GetCallbacks();
 }
 
 void CAddonInterfaces::INPUTSTREAMLib_UnRegisterMe(void *addonData, void* cbTable)
@@ -277,12 +309,12 @@ void CAddonInterfaces::INPUTSTREAMLib_UnRegisterMe(void *addonData, void* cbTabl
     return;
   }
 
-  delete static_cast<V1::KodiAPI::InputStream::CAddonCallbacksInputStream*>(addon->m_helperInputStream);
+  delete static_cast<KodiAPI::V1::InputStream::CAddonCallbacksInputStream*>(addon->m_helperInputStream);
   addon->m_helperInputStream = nullptr;
 }
 /*\_____________________________________________________________________________
 \*/
-CB_PeripheralLib* CAddonInterfaces::PeripheralLib_RegisterMe(void *addonData)
+void* CAddonInterfaces::PeripheralLib_RegisterMe(void *addonData)
 {
   CAddonInterfaces* addon = static_cast<CAddonInterfaces*>(addonData);
   if (addon == nullptr)
@@ -291,11 +323,11 @@ CB_PeripheralLib* CAddonInterfaces::PeripheralLib_RegisterMe(void *addonData)
     return nullptr;
   }
 
-  addon->m_helperPeripheral = new V1::KodiAPI::Peripheral::CAddonCallbacksPeripheral(addon->m_addon);
-  return static_cast<V1::KodiAPI::Peripheral::CAddonCallbacksPeripheral*>(addon->m_helperPeripheral)->GetCallbacks();
+  addon->m_helperPeripheral = new KodiAPI::V1::Peripheral::CAddonCallbacksPeripheral(addon->m_addon);
+  return static_cast<KodiAPI::V1::Peripheral::CAddonCallbacksPeripheral*>(addon->m_helperPeripheral)->GetCallbacks();
 }
 
-void CAddonInterfaces::PeripheralLib_UnRegisterMe(void *addonData, CB_PeripheralLib* cbTable)
+void CAddonInterfaces::PeripheralLib_UnRegisterMe(void *addonData, void* cbTable)
 {
   CAddonInterfaces* addon = static_cast<CAddonInterfaces*>(addonData);
   if (addon == nullptr)
@@ -304,7 +336,7 @@ void CAddonInterfaces::PeripheralLib_UnRegisterMe(void *addonData, CB_Peripheral
     return;
   }
 
-  delete static_cast<V1::KodiAPI::Peripheral::CAddonCallbacksPeripheral*>(addon->m_helperPeripheral);
+  delete static_cast<KodiAPI::V1::Peripheral::CAddonCallbacksPeripheral*>(addon->m_helperPeripheral);
   addon->m_helperPeripheral = nullptr;
 }
 /*\_____________________________________________________________________________
@@ -320,7 +352,7 @@ void CAddonInterfaces::OnApplicationMessage(ThreadMessage* pMsg)
       switch (pMsg->param1)
       {
       case 1:
-        static_cast<V1::KodiAPI::GUI::CGUIAddonWindowDialog*>(pMsg->lpVoid)->Show_Internal(pMsg->param2 > 0);
+        static_cast<KodiAPI::V1::GUI::CGUIAddonWindowDialog*>(pMsg->lpVoid)->Show_Internal(pMsg->param2 > 0);
         break;
       };
     }

@@ -83,6 +83,7 @@
 #define PLAYER_IS_TEMPO              59
 #define PLAYER_PLAYSPEED             60
 #define PLAYER_SEEKNUMERIC           61
+#define PLAYER_HAS_GAME              62
 
 #define WEATHER_CONDITIONS          100
 #define WEATHER_TEMPERATURE         101
@@ -129,12 +130,13 @@
 #define SYSTEM_PROFILENAME          146
 #define SYSTEM_PROFILETHUMB         147
 #define SYSTEM_HAS_LOGINSCREEN      148
-#define SYSTEM_HAS_MODAL_DIALOG     149
+#define SYSTEM_HAS_ACTIVE_MODAL_DIALOG  149
 #define SYSTEM_HDD_SMART            150
 #define SYSTEM_HDD_TEMPERATURE      151
 #define SYSTEM_HDD_MODEL            152
 #define SYSTEM_HDD_SERIAL           153
 #define SYSTEM_HDD_FIRMWARE         154
+#define SYSTEM_HAS_VISIBLE_MODAL_DIALOG  155
 #define SYSTEM_HDD_PASSWORD         156
 #define SYSTEM_HDD_LOCKSTATE        157
 #define SYSTEM_HDD_LOCKKEY          158
@@ -317,6 +319,7 @@
 #define CONTAINER_VIEWCOUNT         381
 #define CONTAINER_SHOWTITLE         382
 #define CONTAINER_PLUGINCATEGORY    383
+#define CONTAINER_ACTUAL_ITEMS      384
 
 #define MUSICPM_ENABLED             390
 #define MUSICPM_SONGSPLAYED         391
@@ -366,6 +369,7 @@
 #define SKIN_HAS_THEME              606
 #define SKIN_ASPECT_RATIO           607
 
+#define SYSTEM_PRIVACY_POLICY       643
 #define SYSTEM_TOTAL_MEMORY         644
 #define SYSTEM_CPU_USAGE            645
 #define SYSTEM_USED_MEMORY_PERCENT  646

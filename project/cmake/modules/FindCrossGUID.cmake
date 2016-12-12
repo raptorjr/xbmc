@@ -7,8 +7,17 @@ if(ENABLE_INTERNAL_CROSSGUID)
 
   # allow user to override the download URL with a local tarball
   # needed for offline build envs
-  if(NOT EXISTS ${CROSSGUID_URL})
+  if(CROSSGUID_URL)
+    get_filename_component(CROSSGUID_URL "${CROSSGUID_URL}" ABSOLUTE)
+  else()
     set(CROSSGUID_URL http://mirrors.kodi.tv/build-deps/sources/crossguid-${CGUID_VER}.tar.gz)
+  endif()
+  if(VERBOSE)
+    message(STATUS "CROSSGUID_URL: ${CROSSGUID_URL}")
+  endif()
+
+  if(APPLE)
+    set(EXTRA_ARGS "-DCMAKE_OSX_ARCHITECTURES=${CMAKE_OSX_ARCHITECTURES}")
   endif()
 
   set(CROSSGUID_LIBRARY ${CMAKE_BINARY_DIR}/${CORE_BUILD_DIR}/lib/libcrossguid.a)
@@ -19,6 +28,7 @@ if(ENABLE_INTERNAL_CROSSGUID)
                       PREFIX ${CORE_BUILD_DIR}/crossguid
                       CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/${CORE_BUILD_DIR}
                                  -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
+                                 "${EXTRA_ARGS}"
                       PATCH_COMMAND ${CMAKE_COMMAND} -E copy
                                     ${CORE_SOURCE_DIR}/tools/depends/target/crossguid/CMakeLists.txt
                                     <SOURCE_DIR> &&

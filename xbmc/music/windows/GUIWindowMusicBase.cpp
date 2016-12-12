@@ -29,6 +29,7 @@
 #include "playlists/PlayListM3U.h"
 #include "Application.h"
 #include "PlayListPlayer.h"
+#include "ServiceBroker.h"
 #ifdef HAS_CDDA_RIPPER
 #include "cdrip/CDDARipper.h"
 #endif
@@ -1091,7 +1092,7 @@ bool CGUIWindowMusicBase::OnPlayMedia(int iItem, const std::string &player)
   { // single music file - if we get here then we have autoplaynextitem turned off or queuebydefault
     // turned on, but we still want to use the playlist player in order to handle more queued items
     // following etc.
-    if ( (CSettings::GetInstance().GetBool(CSettings::SETTING_MUSICPLAYER_QUEUEBYDEFAULT) && g_windowManager.GetActiveWindow() != WINDOW_MUSIC_PLAYLIST_EDITOR) )
+    if ( (CServiceBroker::GetSettings().GetBool(CSettings::SETTING_MUSICPLAYER_QUEUEBYDEFAULT) && g_windowManager.GetActiveWindow() != WINDOW_MUSIC_PLAYLIST_EDITOR) )
     {
       //! @todo Should the playlist be cleared if nothing is already playing?
       OnQueueItem(iItem);
@@ -1175,7 +1176,7 @@ void CGUIWindowMusicBase::UpdateThumb(const CAlbum &album, const std::string &pa
 void CGUIWindowMusicBase::OnRetrieveMusicInfo(CFileItemList& items)
 {
   if (items.GetFolderCount()==items.Size() || items.IsMusicDb() ||
-     (!CSettings::GetInstance().GetBool(CSettings::SETTING_MUSICFILES_USETAGS) && !items.IsCDDA()))
+     (!CServiceBroker::GetSettings().GetBool(CSettings::SETTING_MUSICFILES_USETAGS) && !items.IsCDDA()))
   {
     return;
   }
@@ -1304,28 +1305,33 @@ bool CGUIWindowMusicBase::CanContainFilter(const std::string &strDirectory) cons
 void CGUIWindowMusicBase::OnInitWindow()
 {
   CGUIMediaWindow::OnInitWindow();
-  if (CMediaSettings::GetInstance().GetMusicNeedsUpdate() == 53)
+  // Prompt for rescan of library to read music file tags that were not processed by previous versions
+  // and accomodate any changes to the way some tags are processed
+  if (CMediaSettings::GetInstance().GetMusicNeedsUpdate() != 0)
   {
     if (g_infoManager.GetLibraryBool(LIBRARY_HAS_MUSIC) && !g_application.IsMusicScanning())
     {
       // rescan of music library required
-      if (CGUIDialogYesNo::ShowAndGetInput(CVariant{799}, CVariant{800}))
+      if (CGUIDialogYesNo::ShowAndGetInput(CVariant{799}, CVariant{38060}))
       {
         int flags = CMusicInfoScanner::SCAN_RESCAN;
-        if (CSettings::GetInstance().GetBool(CSettings::SETTING_MUSICLIBRARY_DOWNLOADINFO))
-          flags |= CMusicInfoScanner::SCAN_ONLINE;
-        if (CSettings::GetInstance().GetBool(CSettings::SETTING_MUSICLIBRARY_BACKGROUNDUPDATE))
+        // When set to fetch information on update enquire about scraping that as well
+        // It may take some time, so the user may want to do it later by "Query Info For All"
+        if (CServiceBroker::GetSettings().GetBool(CSettings::SETTING_MUSICLIBRARY_DOWNLOADINFO))
+          if (CGUIDialogYesNo::ShowAndGetInput(CVariant{799}, CVariant{38061}))
+            flags |= CMusicInfoScanner::SCAN_ONLINE;
+        if (CServiceBroker::GetSettings().GetBool(CSettings::SETTING_MUSICLIBRARY_BACKGROUNDUPDATE))
           flags |= CMusicInfoScanner::SCAN_BACKGROUND;
         g_application.StartMusicScan("", true, flags);
         CMediaSettings::GetInstance().SetMusicNeedsUpdate(0); // once is enough (user may interrupt, but that's up to them)
-        CSettings::GetInstance().Save();
+        CServiceBroker::GetSettings().Save();
       }
     }
     else
     {
       // no need to force a rescan if there's no music in the library or if a library scan is already active
       CMediaSettings::GetInstance().SetMusicNeedsUpdate(0);
-      CSettings::GetInstance().Save();
+      CServiceBroker::GetSettings().Save();
     }
   }
 }

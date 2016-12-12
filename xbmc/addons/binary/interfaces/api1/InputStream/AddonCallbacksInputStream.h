@@ -23,22 +23,12 @@
 #include "cores/VideoPlayer/DVDDemuxers/DVDDemuxUtils.h"
 #include "addons/kodi-addon-dev-kit/include/kodi/libKODI_inputstream.h"
 
-namespace V1
-{
 namespace KodiAPI
 {
-
+namespace V1
+{
 namespace InputStream
 {
-
-typedef void (*InputStreamFreeDemuxPacket)(void *addonData, DemuxPacket* pPacket);
-typedef DemuxPacket* (*InputStreamAllocateDemuxPacket)(void *addonData, int iDataSize);
-
-typedef struct CB_INPUTSTREAMLib
-{
-  InputStreamFreeDemuxPacket FreeDemuxPacket;
-  InputStreamAllocateDemuxPacket AllocateDemuxPacket;
-} CB_INPUTSTREAMLib;
 
 class CAddonCallbacksInputStream : public ADDON::IAddonInterface
 {
@@ -71,6 +61,5 @@ private:
 };
 
 } /* namespace InputStream */
-
-} /* namespace KoidAPI */
 } /* namespace V1 */
+} /* namespace KodiAPI */

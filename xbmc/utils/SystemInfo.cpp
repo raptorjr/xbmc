@@ -31,8 +31,10 @@
 #endif
 #include "guiinfo/GUIInfoLabels.h"
 #include "filesystem/CurlFile.h"
+#include "filesystem/File.h"
 #include "network/Network.h"
 #include "Application.h"
+#include "ServiceBroker.h"
 #include "windowing/WindowingFactory.h"
 #include "guilib/LocalizeStrings.h"
 #include "CPUInfo.h"
@@ -79,6 +81,8 @@
 /* Expand macro before stringify */
 #define STR_MACRO(x) #x
 #define XSTR_MACRO(x) STR_MACRO(x)
+
+using namespace XFILE;
 
 #ifdef TARGET_WINDOWS
 static bool sysGetVersionExWByRef(OSVERSIONINFOEXW& osVerInfo)
@@ -1225,7 +1229,7 @@ std::string CSysInfo::GetUserAgent()
 
 std::string CSysInfo::GetDeviceName()
 {
-  std::string friendlyName = CSettings::GetInstance().GetString(CSettings::SETTING_SERVICES_DEVICENAME);
+  std::string friendlyName = CServiceBroker::GetSettings().GetString(CSettings::SETTING_SERVICES_DEVICENAME);
   if (StringUtils::EqualsNoCase(friendlyName, CCompileInfo::GetAppName()))
   {
     std::string hostname("[unknown]");
@@ -1407,6 +1411,22 @@ std::string CSysInfo::GetUsedCompilerNameAndVer(void)
 #endif
 }
 
+std::string CSysInfo::GetPrivacyPolicy()
+{
+  if (m_privacyPolicy.empty())
+  {
+    CFile file;
+    XFILE::auto_buffer buf;
+    if (file.LoadFile("special://xbmc/privacy-policy.txt", buf) > 0)
+    {
+      std::string strBuf(buf.get(), buf.length());
+      m_privacyPolicy = strBuf;
+    }
+    else
+      m_privacyPolicy = g_localizeStrings.Get(19055);
+  }
+  return m_privacyPolicy;
+}
 
 CJob *CSysInfo::GetJob() const
 {

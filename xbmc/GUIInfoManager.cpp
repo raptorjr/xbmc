@@ -28,6 +28,7 @@
 #include "dialogs/GUIDialogNumeric.h"
 #include "dialogs/GUIDialogProgress.h"
 #include "Application.h"
+#include "ServiceBroker.h"
 #include "Util.h"
 #include "utils/URIUtils.h"
 #include "utils/Weather.h"
@@ -42,6 +43,8 @@
 #include "pictures/GUIWindowSlideShow.h"
 #include "pictures/PictureInfoTag.h"
 #include "music/tags/MusicInfoTag.h"
+#include "games/addons/savestates/SavestateDefines.h"
+#include "games/tags/GameInfoTag.h"
 #include "guilib/IGUIContainer.h"
 #include "guilib/GUIWindowManager.h"
 #include "PlayListPlayer.h"
@@ -463,6 +466,7 @@ const infomap integer_bools[] =  {{ "isequal",          INTEGER_IS_EQUAL },
 const infomap player_labels[] =  {{ "hasmedia",         PLAYER_HAS_MEDIA },           // bools from here
                                   { "hasaudio",         PLAYER_HAS_AUDIO },
                                   { "hasvideo",         PLAYER_HAS_VIDEO },
+                                  { "hasgame",          PLAYER_HAS_GAME },
                                   { "playing",          PLAYER_PLAYING },
                                   { "paused",           PLAYER_PAUSED },
                                   { "rewinding",        PLAYER_REWINDING },
@@ -1155,6 +1159,11 @@ const infomap weather[] =        {{ "isfetched",        WEATHER_IS_FETCHED },
 ///                  _string_,
 ///     Returns the version of the addon with the given id
 ///   }
+///   \table_row3{   <b>`System.PrivacyPolicy`</b>,
+///                  \anchor System_PrivacyPolicy
+///                  _string_,
+///     Returns the official Kodi privacy policy
+///   }
 /// \table_end
 /// @}
 const infomap system_labels[] =  {{ "hasnetwork",       SYSTEM_ETHERNET_LINK_ACTIVE },
@@ -1164,7 +1173,8 @@ const infomap system_labels[] =  {{ "hasnetwork",       SYSTEM_ETHERNET_LINK_ACT
                                   { "haslocks",         SYSTEM_HASLOCKS },
                                   { "hashiddeninput",   SYSTEM_HAS_INPUT_HIDDEN },
                                   { "hasloginscreen",   SYSTEM_HAS_LOGINSCREEN },
-                                  { "hasmodaldialog",   SYSTEM_HAS_MODAL_DIALOG },
+                                  { "hasactivemodaldialog",   SYSTEM_HAS_ACTIVE_MODAL_DIALOG },
+                                  { "hasvisiblemodaldialog",   SYSTEM_HAS_VISIBLE_MODAL_DIALOG },
                                   { "ismaster",         SYSTEM_ISMASTER },
                                   { "isfullscreen",     SYSTEM_ISFULLSCREEN },
                                   { "isstandalone",     SYSTEM_ISSTANDALONE },
@@ -1222,6 +1232,7 @@ const infomap system_labels[] =  {{ "hasnetwork",       SYSTEM_ETHERNET_LINK_ACT
                                   { "stereoscopicmode", SYSTEM_STEREOSCOPIC_MODE },
                                   { "hasadsp",          SYSTEM_HAS_ADSP },
                                   { "hascms",           SYSTEM_HAS_CMS },
+                                  { "privacypolicy",    SYSTEM_PRIVACY_POLICY },
                                   { "haspvraddon",      SYSTEM_HAS_PVR_ADDON }};
 
 /// \page modules__General__List_of_gui_access
@@ -2317,7 +2328,13 @@ const infomap mediacontainer[] = {{ "hasfiles",         CONTAINER_HASFILES },
 ///   \table_row3{   <b>`Container(id).NumItems`</b>,
 ///                  \anchor Container_NumItems
 ///                  _boolean_,
-///     Number of items in the container or grouplist with given id. If no id is
+///     Number of items in the container or grouplist with given id excluding parent folder item. If no id is
+///     specified it grabs the current container.
+///   }
+///   \table_row3{   <b>`Container(id).ActualItems`</b>,
+///                  \anchor Container_ActualItems
+///                  _boolean_,
+///     Number of items in the container or grouplist with given id including parent folder item. If no id is
 ///     specified it grabs the current container.
 ///   }
 ///   \table_row3{   <b>`Container(id).CurrentPage`</b>,
@@ -2378,6 +2395,7 @@ const infomap container_bools[] ={{ "onnext",           CONTAINER_MOVE_NEXT },
                                   { "onscrollprevious", CONTAINER_SCROLL_PREVIOUS },
                                   { "numpages",         CONTAINER_NUM_PAGES },
                                   { "numitems",         CONTAINER_NUM_ITEMS },
+                                  { "actualitems",      CONTAINER_ACTUAL_ITEMS },
                                   { "currentpage",      CONTAINER_CURRENT_PAGE },
                                   { "scrolling",        CONTAINER_SCROLLING },
                                   { "hasnext",          CONTAINER_HAS_NEXT },
@@ -5980,7 +5998,7 @@ std::string CGUIInfoManager::GetLabel(int info, int contextWindow, std::string *
     URIUtils::RemoveExtension(strLabel);
     break;
   case WEATHER_PLUGIN:
-    strLabel = CSettings::GetInstance().GetString(CSettings::SETTING_WEATHER_ADDON);
+    strLabel = CServiceBroker::GetSettings().GetString(CSettings::SETTING_WEATHER_ADDON);
     break;
   case SYSTEM_DATE:
     strLabel = GetDate();
@@ -6065,7 +6083,7 @@ std::string CGUIInfoManager::GetLabel(int info, int contextWindow, std::string *
           CEpgInfoTagPtr tag(m_currentFile->GetPVRChannelInfoTag()->GetEPGNow());
           return tag ?
                    tag->Title() :
-                   CSettings::GetInstance().GetBool(CSettings::SETTING_EPG_HIDENOINFOAVAILABLE) ?
+                   CServiceBroker::GetSettings().GetBool(CSettings::SETTING_EPG_HIDENOINFOAVAILABLE) ?
                             "" : g_localizeStrings.Get(19055); // no information available
         }
         if (m_currentFile->HasPVRRecordingInfoTag() && !m_currentFile->GetPVRRecordingInfoTag()->m_strTitle.empty())
@@ -6339,6 +6357,11 @@ std::string CGUIInfoManager::GetLabel(int info, int contextWindow, std::string *
     return g_sysinfo.GetInfo(info);
     break;
 
+
+  case SYSTEM_PRIVACY_POLICY:
+    return g_sysinfo.GetPrivacyPolicy();
+    break;
+
   case SYSTEM_SCREEN_RESOLUTION:
     if(g_Windowing.IsFullScreen())
       strLabel = StringUtils::Format("%ix%i@%.2fHz - %s",
@@ -6414,6 +6437,7 @@ std::string CGUIInfoManager::GetLabel(int info, int contextWindow, std::string *
     break;
   case CONTAINER_NUM_PAGES:
   case CONTAINER_NUM_ITEMS:
+  case CONTAINER_ACTUAL_ITEMS:
   case CONTAINER_CURRENT_ITEM:
   case CONTAINER_CURRENT_PAGE:
     return GetMultiInfoLabel(GUIInfo(info), contextWindow);
@@ -6509,7 +6533,7 @@ std::string CGUIInfoManager::GetLabel(int info, int contextWindow, std::string *
     return g_localizeStrings.Get(g_windowManager.GetFocusedWindow());
     break;
   case SYSTEM_STARTUP_WINDOW:
-    strLabel = StringUtils::Format("%i", CSettings::GetInstance().GetInt(CSettings::SETTING_LOOKANDFEEL_STARTUPWINDOW));
+    strLabel = StringUtils::Format("%i", CServiceBroker::GetSettings().GetInt(CSettings::SETTING_LOOKANDFEEL_STARTUPWINDOW));
     break;
   case SYSTEM_CURRENT_CONTROL:
   case SYSTEM_CURRENT_CONTROL_ID:
@@ -6576,16 +6600,16 @@ std::string CGUIInfoManager::GetLabel(int info, int contextWindow, std::string *
     break;
   case SYSTEM_STEREOSCOPIC_MODE:
     {
-      int stereoMode = CSettings::GetInstance().GetInt(CSettings::SETTING_VIDEOSCREEN_STEREOSCOPICMODE);
+      int stereoMode = CServiceBroker::GetSettings().GetInt(CSettings::SETTING_VIDEOSCREEN_STEREOSCOPICMODE);
       strLabel = StringUtils::Format("%i", stereoMode);
     }
     break;
 
   case SKIN_THEME:
-    strLabel = CSettings::GetInstance().GetString(CSettings::SETTING_LOOKANDFEEL_SKINTHEME);
+    strLabel = CServiceBroker::GetSettings().GetString(CSettings::SETTING_LOOKANDFEEL_SKINTHEME);
     break;
   case SKIN_COLOUR_THEME:
-    strLabel = CSettings::GetInstance().GetString(CSettings::SETTING_LOOKANDFEEL_SKINCOLORS);
+    strLabel = CServiceBroker::GetSettings().GetString(CSettings::SETTING_LOOKANDFEEL_SKINCOLORS);
     break;
   case SKIN_ASPECT_RATIO:
     if (g_SkinInfo)
@@ -6664,7 +6688,7 @@ std::string CGUIInfoManager::GetLabel(int info, int contextWindow, std::string *
   case VISUALISATION_NAME:
     {
       AddonPtr addon;
-      strLabel = CSettings::GetInstance().GetString(CSettings::SETTING_MUSICPLAYER_VISUALISATION);
+      strLabel = CServiceBroker::GetSettings().GetString(CSettings::SETTING_MUSICPLAYER_VISUALISATION);
       if (CAddonMgr::GetInstance().GetAddon(strLabel,addon) && addon)
         strLabel = addon->Name();
     }
@@ -7015,15 +7039,17 @@ bool CGUIInfoManager::GetBool(int condition1, int contextWindow, const CGUIListI
   else if (condition == SYSTEM_ISINHIBIT)
     bReturn = g_application.IsIdleShutdownInhibited();
   else if (condition == SYSTEM_HAS_SHUTDOWN)
-    bReturn = (CSettings::GetInstance().GetInt(CSettings::SETTING_POWERMANAGEMENT_SHUTDOWNTIME) > 0);
+    bReturn = (CServiceBroker::GetSettings().GetInt(CSettings::SETTING_POWERMANAGEMENT_SHUTDOWNTIME) > 0);
   else if (condition == SYSTEM_LOGGEDON)
     bReturn = !(g_windowManager.GetActiveWindow() == WINDOW_LOGIN_SCREEN);
   else if (condition == SYSTEM_SHOW_EXIT_BUTTON)
     bReturn = g_advancedSettings.m_showExitButton;
   else if (condition == SYSTEM_HAS_LOGINSCREEN)
     bReturn = CProfilesManager::GetInstance().UsingLoginScreen();
-  else if (condition == SYSTEM_HAS_MODAL_DIALOG)
+  else if (condition == SYSTEM_HAS_ACTIVE_MODAL_DIALOG)
     bReturn = g_windowManager.HasModalDialog();
+  else if (condition == SYSTEM_HAS_VISIBLE_MODAL_DIALOG)
+    bReturn = g_windowManager.HasVisibleModalDialog();
   else if (condition == WEATHER_IS_FETCHED)
     bReturn = g_weatherManager.IsFetched();
   else if (condition >= PVR_CONDITIONS_START && condition <= PVR_CONDITIONS_END)
@@ -7167,6 +7193,9 @@ bool CGUIInfoManager::GetBool(int condition1, int contextWindow, const CGUIListI
     case PLAYER_HAS_VIDEO:
       bReturn = g_application.m_pPlayer->IsPlayingVideo();
       break;
+    case PLAYER_HAS_GAME:
+      bReturn = g_application.m_pPlayer->IsPlayingGame();
+      break;
     case PLAYER_PLAYING:
       {
         float speed = g_application.m_pPlayer->GetPlaySpeed();
@@ -7284,7 +7313,7 @@ bool CGUIInfoManager::GetBool(int condition1, int contextWindow, const CGUIListI
       }
       break;
     case VIDEOPLAYER_USING_OVERLAYS:
-      bReturn = (CSettings::GetInstance().GetInt(CSettings::SETTING_VIDEOPLAYER_RENDERMETHOD) == RENDER_OVERLAYS);
+      bReturn = (CServiceBroker::GetSettings().GetInt(CSettings::SETTING_VIDEOPLAYER_RENDERMETHOD) == RENDER_OVERLAYS);
     break;
     case VIDEOPLAYER_ISFULLSCREEN:
       bReturn = g_windowManager.GetActiveWindow() == WINDOW_FULLSCREEN_VIDEO;
@@ -7326,7 +7355,7 @@ bool CGUIInfoManager::GetBool(int condition1, int contextWindow, const CGUIListI
       }
     break;
     case VISUALISATION_ENABLED:
-      bReturn = !CSettings::GetInstance().GetString(CSettings::SETTING_MUSICPLAYER_VISUALISATION).empty();
+      bReturn = !CServiceBroker::GetSettings().GetString(CSettings::SETTING_MUSICPLAYER_VISUALISATION).empty();
     break;
     case VIDEOPLAYER_HAS_EPG:
       if (m_currentFile->HasPVRChannelInfoTag())
@@ -7445,7 +7474,7 @@ bool CGUIInfoManager::GetMultiInfoBool(const GUIInfo &info, int contextWindow, c
         break;
       case SKIN_HAS_THEME:
         {
-          std::string theme = CSettings::GetInstance().GetString(CSettings::SETTING_LOOKANDFEEL_SKINTHEME);
+          std::string theme = CServiceBroker::GetSettings().GetString(CSettings::SETTING_LOOKANDFEEL_SKINTHEME);
           URIUtils::RemoveExtension(theme);
           bReturn = StringUtils::EqualsNoCase(theme, m_stringParameters[info.GetData1()]);
         }
@@ -7646,7 +7675,7 @@ bool CGUIInfoManager::GetMultiInfoBool(const GUIInfo &info, int contextWindow, c
         bReturn = g_alarmClock.HasAlarm(m_stringParameters[info.GetData1()]);
         break;
       case SYSTEM_GET_BOOL:
-        bReturn = CSettings::GetInstance().GetBool(m_stringParameters[info.GetData1()]);
+        bReturn = CServiceBroker::GetSettings().GetBool(m_stringParameters[info.GetData1()]);
         break;
       case SYSTEM_HAS_CORE_ID:
         bReturn = g_cpuInfo.HasCoreId(info.GetData1());
@@ -7934,18 +7963,23 @@ std::string CGUIInfoManager::GetMultiInfoLabel(const GUIInfo &info, int contextW
   if (info.m_info >= LISTITEM_START && info.m_info <= LISTITEM_END)
   {
     CFileItemPtr item;
-    CGUIWindow *window = NULL;
+    CGUIWindow *window = GetWindowWithCondition(contextWindow, 0);
 
     int data1 = info.GetData1();
     if (!data1) // No container specified, so we lookup the current view container
     {
-      window = GetWindowWithCondition(contextWindow, WINDOW_CONDITION_HAS_LIST_ITEMS);
-      if (window && window->IsMediaWindow())
-        data1 = ((CGUIMediaWindow*)(window))->GetViewContainerID();
+      if (window)
+      {
+        if (window->IsMediaWindow())
+          data1 = static_cast<CGUIMediaWindow*>(window)->GetViewContainerID();
+        else
+        {
+          auto control = window->GetFocusedControl();
+          if (control && control->IsContainer())
+            data1 = control->GetID();
+        }
+      }
     }
-
-    if (!window) // If we don't have a window already (from lookup above), get one
-      window = GetWindowWithCondition(contextWindow, 0);
 
     if (window)
     {
@@ -8052,7 +8086,7 @@ std::string CGUIInfoManager::GetMultiInfoLabel(const GUIInfo &info, int contextW
   else if (info.m_info == CONTAINER_NUM_PAGES || info.m_info == CONTAINER_CURRENT_PAGE ||
            info.m_info == CONTAINER_NUM_ITEMS || info.m_info == CONTAINER_POSITION ||
            info.m_info == CONTAINER_ROW || info.m_info == CONTAINER_COLUMN ||
-           info.m_info == CONTAINER_CURRENT_ITEM)
+           info.m_info == CONTAINER_CURRENT_ITEM || info.m_info == CONTAINER_ACTUAL_ITEMS)
   {
     const CGUIControl *control = NULL;
     if (info.GetData1())
@@ -8401,7 +8435,10 @@ std::string CGUIInfoManager::GetPlaylistLabel(int item, int playlistid /* = PLAY
     }
   case PLAYLIST_POSITION:
     {
-      return StringUtils::Format("%i", g_playlistPlayer.GetCurrentSong() + 1);
+      int currentSong = g_playlistPlayer.GetCurrentSong();
+      if (currentSong > -1)
+        return StringUtils::Format("%i", currentSong + 1);
+      break;
     }
   case PLAYLIST_RANDOM:
     {
@@ -8543,7 +8580,7 @@ std::string CGUIInfoManager::GetRadioRDSLabel(int item)
       CEpgInfoTagPtr epgNow(m_currentFile->GetPVRChannelInfoTag()->GetEPGNow());
       return epgNow ?
                 epgNow->Title() :
-                CSettings::GetInstance().GetBool("epg.hidenoinfoavailable") ? "" : g_localizeStrings.Get(19055); // no information available
+                CServiceBroker::GetSettings().GetBool("epg.hidenoinfoavailable") ? "" : g_localizeStrings.Get(19055); // no information available
       break;
     }
 
@@ -8555,7 +8592,7 @@ std::string CGUIInfoManager::GetRadioRDSLabel(int item)
       CEpgInfoTagPtr epgNext(m_currentFile->GetPVRChannelInfoTag()->GetEPGNext());
       return epgNext ?
                 epgNext->Title() :
-                CSettings::GetInstance().GetBool("epg.hidenoinfoavailable") ? "" : g_localizeStrings.Get(19055); // no information available
+                CServiceBroker::GetSettings().GetBool("epg.hidenoinfoavailable") ? "" : g_localizeStrings.Get(19055); // no information available
       break;
     }
 
@@ -8787,7 +8824,7 @@ std::string CGUIInfoManager::GetVideoLabel(int item)
       epgTag = tag->GetEPGNow();
       return epgTag ?
           epgTag->Title() :
-          CSettings::GetInstance().GetBool(CSettings::SETTING_EPG_HIDENOINFOAVAILABLE) ?
+          CServiceBroker::GetSettings().GetBool(CSettings::SETTING_EPG_HIDENOINFOAVAILABLE) ?
                             "" : g_localizeStrings.Get(19055); // no information available
     case VIDEOPLAYER_GENRE:
       epgTag = tag->GetEPGNow();
@@ -8848,7 +8885,7 @@ std::string CGUIInfoManager::GetVideoLabel(int item)
       epgTag = tag->GetEPGNext();
       return epgTag ?
           epgTag->Title() :
-          CSettings::GetInstance().GetBool(CSettings::SETTING_EPG_HIDENOINFOAVAILABLE) ?
+          CServiceBroker::GetSettings().GetBool(CSettings::SETTING_EPG_HIDENOINFOAVAILABLE) ?
                             "" : g_localizeStrings.Get(19055); // no information available
     case VIDEOPLAYER_NEXT_GENRE:
       epgTag = tag->GetEPGNext();
@@ -9236,6 +9273,8 @@ void CGUIInfoManager::SetCurrentItemJob(const CFileItemPtr item)
 
   if (item->IsAudio())
     SetCurrentSong(*item);
+  else if (item->IsGame())
+    SetCurrentGame(*item);
   else
     SetCurrentMovie(*item);
 
@@ -9353,6 +9392,21 @@ void CGUIInfoManager::SetCurrentMovie(CFileItem &item)
 
   item.FillInDefaultIcon();
   m_currentMovieThumb = item.GetArt("thumb");
+}
+
+void CGUIInfoManager::SetCurrentGame(CFileItem &item)
+{
+  CLog::Log(LOGDEBUG,"CGUIInfoManager::SetCurrentGame(%s)", item.GetPath().c_str());
+  *m_currentFile = item;
+
+  m_currentFile->LoadGameTag();
+  if (m_currentFile->GetGameInfoTag()->GetTitle().empty())
+  {
+    // No title in tag, show filename only
+    m_currentFile->GetGameInfoTag()->SetTitle(CUtil::GetTitleFromPath(m_currentFile->GetPath()));
+  }
+
+  m_currentFile->FillInDefaultIcon();
 }
 
 std::string CGUIInfoManager::GetSystemHeatInfo(int info)
@@ -9680,7 +9734,7 @@ std::string CGUIInfoManager::GetItemLabel(const CFileItem *item, int info, std::
       CEpgInfoTagPtr epgTag(item->GetPVRChannelInfoTag()->GetEPGNow());
       return epgTag ?
           epgTag->Title() :
-          CSettings::GetInstance().GetBool(CSettings::SETTING_EPG_HIDENOINFOAVAILABLE) ?
+          CServiceBroker::GetSettings().GetBool(CSettings::SETTING_EPG_HIDENOINFOAVAILABLE) ?
                             "" : g_localizeStrings.Get(19055); // no information available
     }
     if (item->HasPVRRecordingInfoTag())
@@ -9730,12 +9784,13 @@ std::string CGUIInfoManager::GetItemLabel(const CFileItem *item, int info, std::
     break;
   case LISTITEM_PLAYCOUNT:
     {
-      std::string strPlayCount;
-      if (item->HasVideoInfoTag() && item->GetVideoInfoTag()->m_playCount > 0)
-        strPlayCount = StringUtils::Format("%i", item->GetVideoInfoTag()->m_playCount);
-      if (item->HasMusicInfoTag() && item->GetMusicInfoTag()->GetPlayCount() > 0)
-        strPlayCount = StringUtils::Format("%i", item->GetMusicInfoTag()->GetPlayCount());
-      return strPlayCount;
+      if (item->HasPVRRecordingInfoTag() && item->GetPVRRecordingInfoTag()->m_playCount > 0)
+        return StringUtils::Format("%i", item->GetPVRRecordingInfoTag()->m_playCount);
+      else if (item->HasVideoInfoTag() && item->GetVideoInfoTag()->m_playCount > 0)
+        return StringUtils::Format("%i", item->GetVideoInfoTag()->m_playCount);
+      else if (item->HasMusicInfoTag() && item->GetMusicInfoTag()->GetPlayCount() > 0)
+        return StringUtils::Format("%i", item->GetMusicInfoTag()->GetPlayCount());
+      break;
     }
   case LISTITEM_LASTPLAYED:
     {
@@ -10005,6 +10060,11 @@ std::string CGUIInfoManager::GetItemLabel(const CFileItem *item, int info, std::
         if (item->GetMusicInfoTag()->GetDuration() > 0)
           duration = StringUtils::SecondsToTimeString(item->GetMusicInfoTag()->GetDuration());
       }
+      else if (item->HasProperty(FILEITEM_PROPERTY_SAVESTATE_DURATION))
+      {
+        long iDuration = static_cast<long>(item->GetProperty(FILEITEM_PROPERTY_SAVESTATE_DURATION).asInteger());
+        duration = StringUtils::SecondsToTimeString(iDuration);
+      }
       return duration;
     }
   case LISTITEM_PLOT:
@@ -10026,7 +10086,7 @@ std::string CGUIInfoManager::GetItemLabel(const CFileItem *item, int info, std::
     if (item->HasVideoInfoTag())
     {
       if (item->GetVideoInfoTag()->m_type != MediaTypeTvShow && item->GetVideoInfoTag()->m_type != MediaTypeVideoCollection)
-        if (item->GetVideoInfoTag()->m_playCount == 0 && !CSettings::GetInstance().GetBool(CSettings::SETTING_VIDEOLIBRARY_SHOWUNWATCHEDPLOTS))
+        if (item->GetVideoInfoTag()->m_playCount == 0 && !CServiceBroker::GetSettings().GetBool(CSettings::SETTING_VIDEOLIBRARY_SHOWUNWATCHEDPLOTS))
           return g_localizeStrings.Get(20370);
 
       return item->GetVideoInfoTag()->m_strPlot;
@@ -10707,7 +10767,7 @@ bool CGUIInfoManager::GetItemBool(const CGUIListItem *item, int condition) const
   {
     if (item->IsFileItem())
     {
-      const CFileItem *pItem = (const CFileItem *)item;
+      const CFileItem *pItem = static_cast<const CFileItem *>(item);
       return pItem->IsParentFolder();
     }
   }
@@ -10715,10 +10775,11 @@ bool CGUIInfoManager::GetItemBool(const CGUIListItem *item, int condition) const
   {
     if (item->IsFileItem())
     {
-      if (((const CFileItem *)item)->HasVideoInfoTag())
-        return ((const CFileItem *)item)->GetVideoInfoTag()->m_resumePoint.timeInSeconds > 0;
-      else if (((const CFileItem *)item)->HasPVRRecordingInfoTag())
-        return ((const CFileItem *)item)->GetPVRRecordingInfoTag()->m_resumePoint.timeInSeconds > 0;
+      const CFileItem *pItem = static_cast<const CFileItem *>(item);
+      if (pItem->HasPVRRecordingInfoTag())
+        return pItem->GetPVRRecordingInfoTag()->m_resumePoint.timeInSeconds > 0;
+      else if (pItem->HasVideoInfoTag())
+        return pItem->GetVideoInfoTag()->m_resumePoint.timeInSeconds > 0;
     }
   }
   else if (item->IsFileItem())
@@ -10745,6 +10806,10 @@ bool CGUIInfoManager::GetItemBool(const CGUIListItem *item, int condition) const
         if (timer)
           return timer->IsRecording();
       }
+      else if (pItem->HasPVRRecordingInfoTag())
+      {
+        return pItem->GetPVRRecordingInfoTag()->IsInProgress();
+      }
     }
     else if (condition == LISTITEM_INPROGRESS)
     {
@@ -10761,7 +10826,11 @@ bool CGUIInfoManager::GetItemBool(const CGUIListItem *item, int condition) const
     }
     else if (condition == LISTITEM_HASTIMERSCHEDULE)
     {
-      if (pItem->HasEPGInfoTag())
+      if (pItem->HasPVRTimerInfoTag())
+      {
+        return pItem->GetPVRTimerInfoTag()->GetTimerRuleId() != PVR_TIMER_NO_PARENT;
+      }
+      else if (pItem->HasEPGInfoTag())
       {
         CPVRTimerInfoTagPtr timer = pItem->GetEPGInfoTag()->Timer();
         if (timer)

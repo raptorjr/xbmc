@@ -39,11 +39,10 @@
 using namespace ADDON;
 using namespace XFILE;
 
-namespace V1
-{
 namespace KodiAPI
 {
-
+namespace V1
+{
 namespace AddOn
 {
 
@@ -232,7 +231,8 @@ bool CAddonCallbacksAddon::GetAddonSetting(void *addonData, const char *strSetti
               type == "folder"   || type == "action"    ||
               type == "music"    || type == "pictures"  ||
               type == "programs" || type == "fileenum"  ||
-              type == "file"     || type == "labelenum")
+              type == "file"     || type == "labelenum" ||
+              type == "select")
           {
             strcpy((char*) settingValue, addonHelper->m_addon->GetSetting(id).c_str());
             return true;
@@ -680,6 +680,5 @@ bool CAddonCallbacksAddon::CURLOpen(const void* addonData, void* file, unsigned 
 }
 
 } /* namespace AddOn */
-
-} /* namespace KodiAPI */
 } /* namespace V1 */
+} /* namespace KodiAPI */
